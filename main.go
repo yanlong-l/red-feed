@@ -1,7 +1,13 @@
 package main
 
 import (
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
+	"red-feed/internal/repository"
 	"red-feed/internal/repository/dao"
+	"red-feed/internal/service"
+	"red-feed/internal/web"
+	"red-feed/internal/web/middleware"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -11,7 +17,11 @@ import (
 )
 
 func main() {
+	db := initDB()
 	server := initWebServer() // 初始化web server
+
+	u := initUser(db)
+	u.RegisterRoutes(server)
 
 	server.Run(":8080")
 }
@@ -19,7 +29,7 @@ func main() {
 func initWebServer() *gin.Engine {
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
-		//AllowOrigins: []string{"*"},
+		AllowOrigins: []string{"*"},
 		//AllowMethods: []string{"POST", "GET"},
 		AllowHeaders: []string{"Content-Type", "Authorization"},
 		//ExposeHeaders: []string{"x-jwt-token"},
@@ -34,7 +44,23 @@ func initWebServer() *gin.Engine {
 		// },
 		MaxAge: 12 * time.Hour,
 	}))
+
+	store := cookie.NewStore([]byte("secret"))
+	server.Use(sessions.Sessions("r_ssid", store))
+
+	server.Use(middleware.NewLoginMiddlewareBuilder().
+		IgnorePaths("/users/login").
+		IgnorePaths("/users/signup").Build())
+
 	return server
+}
+
+func initUser(db *gorm.DB) *web.UserHandler {
+	ud := dao.NewUserDAO(db)
+	repo := repository.NewUserRepository(ud)
+	svc := service.NewUserService(repo)
+	u := web.NewUserHandler(svc)
+	return u
 }
 
 func initDB() *gorm.DB {
