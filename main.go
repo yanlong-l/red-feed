@@ -9,9 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/redis"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
@@ -33,8 +30,8 @@ func initWebServer() *gin.Engine {
 	server.Use(cors.New(cors.Config{
 		// AllowOrigins: []string{"*"},
 		//AllowMethods: []string{"POST", "GET"},
-		AllowHeaders: []string{"Content-Type", "Authorization"},
-		//ExposeHeaders: []string{"x-jwt-token"},
+		AllowHeaders:  []string{"Content-Type", "Authorization"},
+		ExposeHeaders: []string{"x-jwt-token"},
 		// 是否允许你带 cookie 之类的东西
 		AllowCredentials: true,
 		AllowOriginFunc: func(origin string) bool {
@@ -47,15 +44,7 @@ func initWebServer() *gin.Engine {
 		MaxAge: 12 * time.Hour,
 	}))
 
-	// store := cookie.NewStore([]byte("secret"))
-	// 换用redis的store
-	store, err := redis.NewStore(10, "tcp", "localhost:6379", "", []byte("secret"))
-	if err != nil {
-		panic(err)
-	}
-	server.Use(sessions.Sessions("r_ssid", store))
-
-	server.Use(middleware.NewLoginMiddlewareBuilder().
+	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePaths("/users/login").
 		IgnorePaths("/users/signup").Build())
 
