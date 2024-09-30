@@ -6,11 +6,13 @@ import (
 	"red-feed/internal/service"
 	"red-feed/internal/web"
 	"red-feed/internal/web/middleware"
+	"red-feed/pkg/ginx/middlewares/ratelimit"
 	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -27,6 +29,11 @@ func main() {
 
 func initWebServer() *gin.Engine {
 	server := gin.Default()
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	server.Use(ratelimit.NewBuilder(redisClient, time.Second, 1).Build())
 	server.Use(cors.New(cors.Config{
 		// AllowOrigins: []string{"*"},
 		//AllowMethods: []string{"POST", "GET"},

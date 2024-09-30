@@ -44,11 +44,15 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			return []byte("95osj3fUD7fo0mlYdDbncXz4VD2igvf0"), nil
 		})
 		if err != nil {
-			ctx.AbortWithStatus(http.StatusInternalServerError)
+			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 		// 校验token是否有效
 		if !token.Valid || token == nil || uc.Uid == 0 {
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		if ctx.Request.UserAgent() != uc.UserAgent {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
@@ -61,7 +65,8 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 				RegisteredClaims: jwt.RegisteredClaims{
 					ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
 				},
-				Uid: uc.Uid,
+				Uid:       uc.Uid,
+				UserAgent: ctx.Request.UserAgent(),
 			}
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 			tokenStr, err := token.SignedString([]byte("95osj3fUD7fo0mlYdDbncXz4VD2igvf0"))
