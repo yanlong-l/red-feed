@@ -1,10 +1,11 @@
 package web
 
 import (
-	"github.com/gin-contrib/sessions"
 	"net/http"
 	"red-feed/internal/domain"
 	"red-feed/internal/service"
+
+	"github.com/gin-contrib/sessions"
 
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-gonic/gin"
@@ -83,6 +84,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	}
 	if err != nil {
 		ctx.String(http.StatusOK, "系统错误")
+		return
 	}
 	ctx.String(http.StatusOK, "注册成功")
 
@@ -107,7 +109,11 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	}
 	// 此时，登录成功， 我们需要维持登录态
 	sess := sessions.Default(ctx)
-	sess.Set("user_id", user.Id)
+	// 设置过期时间
+	sess.Options(sessions.Options{
+		MaxAge: 60,
+	})
+	sess.Set("userId", user.Id)
 	err = sess.Save()
 	if err != nil {
 		ctx.String(http.StatusOK, "系统错误")
@@ -122,5 +128,5 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 }
 
 func (u *UserHandler) Profile(ctx *gin.Context) {
-
+	ctx.String(http.StatusOK, "这是你的profile")
 }
