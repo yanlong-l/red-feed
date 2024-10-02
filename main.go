@@ -3,6 +3,7 @@ package main
 import (
 	"red-feed/config"
 	"red-feed/internal/repository"
+	"red-feed/internal/repository/cache"
 	"red-feed/internal/repository/dao"
 	"red-feed/internal/service"
 	"red-feed/internal/web"
@@ -20,21 +21,19 @@ import (
 
 func main() {
 	db := initDB()
-	server := initWebServer() // 初始化web server
+	rdb := initRedis()
+	server := initWebServer(rdb) // 初始化web server
 
-	u := initUser(db)
+	u := initUser(db, rdb)
 	u.RegisterRoutes(server)
 
 	server.Run(":8080")
 }
 
-func initWebServer() *gin.Engine {
+func initWebServer(rdb redis.Cmdable) *gin.Engine {
 	server := gin.Default()
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: config.Config.Redis.Addr,
-	})
-	server.Use(ratelimit.NewBuilder(redisClient, time.Second, 1).Build())
+	server.Use(ratelimit.NewBuilder(rdb, time.Second, 200).Build())
 	server.Use(cors.New(cors.Config{
 		// AllowOrigins: []string{"*"},
 		//AllowMethods: []string{"POST", "GET"},
@@ -59,9 +58,10 @@ func initWebServer() *gin.Engine {
 	return server
 }
 
-func initUser(db *gorm.DB) *web.UserHandler {
+func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
 	ud := dao.NewUserDAO(db)
-	repo := repository.NewUserRepository(ud)
+	uc := cache.NewUserCache(rdb)
+	repo := repository.NewUserRepository(ud, uc)
 	svc := service.NewUserService(repo)
 	u := web.NewUserHandler(svc)
 	return u
@@ -81,4 +81,10 @@ func initDB() *gorm.DB {
 		panic(err)
 	}
 	return db
+}
+
+func initRedis() redis.Cmdable {
+	return redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
 }

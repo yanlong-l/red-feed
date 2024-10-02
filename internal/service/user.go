@@ -46,5 +46,8 @@ func (s *UserService) Login(ctx context.Context, email, password string) (domain
 		return domain.User{}, ErrInvalidUserOrPassword
 	}
 	return u, nil
+}
 
+func (s *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
+	return s.repo.FindById(ctx, id)
 }

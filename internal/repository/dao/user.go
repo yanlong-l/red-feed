@@ -30,6 +30,12 @@ func (dao *UserDAO) FindByEmail(ctx context.Context, email string) (User, error)
 	return user, result.Error
 }
 
+func (dao *UserDAO) FindById(ctx context.Context, id int64) (User, error) {
+	var user User
+	result := dao.db.WithContext(ctx).Where("id = ?", id).First(&user)
+	return user, result.Error
+}
+
 func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 	// 存毫秒数
 	now := time.Now().UnixMilli()

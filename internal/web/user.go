@@ -113,7 +113,7 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	// 登录成功，生成JWT Token
 	claims := UserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
 		},
 		Uid:       user.Id,
 		UserAgent: ctx.Request.UserAgent(),
@@ -189,6 +189,13 @@ func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
+	// 获取用户信息
+	user, err := u.svc.Profile(ctx, claims.Uid)
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	fmt.Println(user)
 	ctx.String(http.StatusOK, fmt.Sprintf("用户ID:%d", claims.Uid))
 }
 
