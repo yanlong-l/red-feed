@@ -22,7 +22,11 @@ func NewUserCache(client redis.Cmdable) *UserCache {
 }
 
 func (uc *UserCache) Set(ctx context.Context, u domain.User) error {
-	return uc.client.Set(ctx, uc.Key(u.Id), u, uc.expiration).Err()
+	val, err := json.Marshal(u)
+	if err != nil {
+		return err
+	}
+	return uc.client.Set(ctx, uc.Key(u.Id), val, uc.expiration).Err()
 }
 
 func (uc *UserCache) Get(ctx context.Context, id int64) (domain.User, error) {
