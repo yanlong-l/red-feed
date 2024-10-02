@@ -1,6 +1,7 @@
 package main
 
 import (
+	"red-feed/config"
 	"red-feed/internal/repository"
 	"red-feed/internal/repository/dao"
 	"red-feed/internal/service"
@@ -31,7 +32,7 @@ func initWebServer() *gin.Engine {
 	server := gin.Default()
 
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: config.Config.Redis.Addr,
 	})
 	server.Use(ratelimit.NewBuilder(redisClient, time.Second, 1).Build())
 	server.Use(cors.New(cors.Config{
@@ -67,7 +68,7 @@ func initUser(db *gorm.DB) *web.UserHandler {
 }
 
 func initDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:13316)/webook"))
+	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
 	if err != nil {
 		// 我只会在初始化过程中 panic
 		// panic 相当于整个 goroutine 结束
