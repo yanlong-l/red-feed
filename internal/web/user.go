@@ -16,11 +16,12 @@ import (
 
 type UserHandler struct {
 	svc         *service.UserService
+	codeSvc     *service.CodeServcie
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
 }
 
-func NewUserHandler(svc *service.UserService) *UserHandler {
+func NewUserHandler(svc *service.UserService, codeSvc *service.CodeServcie) *UserHandler {
 	const (
 		emailRegexPattern    = "^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$"
 		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
@@ -29,6 +30,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 	passwordExp := regexp.MustCompile(passwordRegexPattern, regexp.None)
 	return &UserHandler{
 		svc:         svc,
+		codeSvc:     codeSvc,
 		emailExp:    emailExp,
 		passwordExp: passwordExp,
 	}
@@ -40,6 +42,8 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/signup", u.SignUp)
 	ug.POST("/login", u.LoginJWT)
 	ug.POST("/edit", u.Edit)
+	ug.POST("/login_sms/code/send", u.SendLoginSMSCode)
+	ug.POST("/login_sms", u.LoginSMS)
 }
 
 func (u *UserHandler) SignUp(ctx *gin.Context) {
@@ -196,6 +200,36 @@ func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 	}
 	fmt.Println(user)
 	ctx.String(http.StatusOK, fmt.Sprintf("用户ID:%d", claims.Uid))
+}
+
+// SendLoginSMSCode 发送验证码
+func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
+	// 接收参数
+	type Req struct {
+		Phone string `json:"phone"`
+	}
+	var req Req
+	err := ctx.Bind(&req)
+	if err != nil {
+		return
+	}
+	err = u.codeSvc.Send(ctx, "login", req.Phone)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Code: 2,
+		Msg:  "发送成功",
+	})
+}
+
+// LoginSMS 手机验证码登录
+func (u *UserHandler) LoginSMS(context *gin.Context) {
+
 }
 
 type UserClaims struct {

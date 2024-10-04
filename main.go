@@ -6,6 +6,7 @@ import (
 	"red-feed/internal/repository/cache"
 	"red-feed/internal/repository/dao"
 	"red-feed/internal/service"
+	"red-feed/internal/service/sms/memory"
 	"red-feed/internal/web"
 	"red-feed/internal/web/middleware"
 	"red-feed/pkg/ginx/middlewares/ratelimit"
@@ -53,7 +54,9 @@ func initWebServer(rdb redis.Cmdable) *gin.Engine {
 
 	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePaths("/users/login").
-		IgnorePaths("/users/signup").Build())
+		IgnorePaths("/users/login").
+		IgnorePaths("/users/login_sms/code/send").
+		IgnorePaths("/users/login_sms").Build())
 
 	return server
 }
@@ -63,7 +66,11 @@ func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
 	uc := cache.NewUserCache(rdb)
 	repo := repository.NewUserRepository(ud, uc)
 	svc := service.NewUserService(repo)
-	u := web.NewUserHandler(svc)
+	smsSvc := memory.NewService()
+	codeCache := cache.NewCodeCache(rdb)
+	codeRepo := repository.NewCodeRepository(codeCache)
+	codeSvc := service.NewCodeService(smsSvc, codeRepo)
+	u := web.NewUserHandler(svc, codeSvc)
 	return u
 }
 

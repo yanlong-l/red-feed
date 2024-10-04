@@ -9,7 +9,6 @@ import (
 
 const (
 	tplId = ""
-	biz   = "login"
 )
 
 type CodeServcie struct {
@@ -24,7 +23,7 @@ func NewCodeService(smsSvc sms.Service, codeRepo *repository.CodeRepository) *Co
 	}
 }
 
-func (cs *CodeServcie) Send(ctx context.Context, phone string) error {
+func (cs *CodeServcie) Send(ctx context.Context, biz, phone string) error {
 	// 生成一个验证码
 	code := cs.generatCode()
 	// 缓存这个验证码
