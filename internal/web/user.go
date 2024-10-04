@@ -157,7 +157,6 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
-
 	ctx.String(http.StatusOK, "登录成功")
 }
 
