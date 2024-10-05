@@ -2,7 +2,9 @@ package dao
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"github.com/gin-gonic/gin"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -10,8 +12,8 @@ import (
 )
 
 var (
-	ErrUserDuplicateEmail = errors.New("邮箱冲突")
-	ErrUserNotFound       = gorm.ErrRecordNotFound
+	ErrUserDuplicate = errors.New("邮箱冲突")
+	ErrUserNotFound  = gorm.ErrRecordNotFound
 )
 
 type UserDAO struct {
@@ -36,6 +38,12 @@ func (dao *UserDAO) FindById(ctx context.Context, id int64) (User, error) {
 	return user, result.Error
 }
 
+func (dao *UserDAO) FindByPhone(ctx *gin.Context, phone string) (User, error) {
+	var user User
+	result := dao.db.WithContext(ctx).Where("phone = ?", phone).First(&user)
+	return user, result.Error
+}
+
 func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 	// 存毫秒数
 	now := time.Now().UnixMilli()
@@ -45,8 +53,8 @@ func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 	if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 		const uniqueConflictsErrNo uint16 = 1062
 		if mysqlErr.Number == uniqueConflictsErrNo {
-			// 邮箱冲突
-			return ErrUserDuplicateEmail
+			// 邮箱冲突 或 手机号码冲突
+			return ErrUserDuplicate
 		}
 	}
 	return err
@@ -57,7 +65,8 @@ func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 type User struct {
 	Id int64 `gorm:"primaryKey,autoIncrement"`
 	// 全部用户唯一
-	Email    string `gorm:"unique"`
+	Email    sql.NullString `gorm:"unique"`
+	Phone    sql.NullString `gorm:"unique"`
 	Password string
 	// 创建时间，毫秒数
 	Ctime int64

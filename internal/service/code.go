@@ -11,6 +11,11 @@ const (
 	tplId = ""
 )
 
+var (
+	ErrCodeVerifyTooManyTimes = repository.ErrCodeVerifyTooManyTimes
+	ErrCodeSendTooMany        = repository.ErrCodeSendTooMany
+)
+
 type CodeServcie struct {
 	smsSvc   sms.Service
 	codeRepo *repository.CodeRepository

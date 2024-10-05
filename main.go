@@ -54,7 +54,7 @@ func initWebServer(rdb redis.Cmdable) *gin.Engine {
 
 	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePaths("/users/login").
-		IgnorePaths("/users/login").
+		IgnorePaths("/users/signup").
 		IgnorePaths("/users/login_sms/code/send").
 		IgnorePaths("/users/login_sms").Build())
 

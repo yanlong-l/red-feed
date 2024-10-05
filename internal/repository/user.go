@@ -2,15 +2,18 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"red-feed/internal/domain"
 	"red-feed/internal/repository/cache"
 	"red-feed/internal/repository/dao"
+	"time"
 )
 
 var (
-	ErrUserDuplicateEmail = dao.ErrUserDuplicateEmail
-	ErrUserNotFound       = dao.ErrUserNotFound
+	ErrUserDuplicate = dao.ErrUserDuplicate
+	ErrUserNotFound  = dao.ErrUserNotFound
 )
 
 type UserRepository struct {
@@ -30,11 +33,15 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (domain.
 	if err != nil {
 		return domain.User{}, err
 	}
-	return domain.User{
-		Id:       u.Id,
-		Email:    u.Email,
-		Password: u.Password,
-	}, nil
+	return r.entityToDomain(u), nil
+}
+
+func (r *UserRepository) FindByPhone(ctx *gin.Context, phone string) (domain.User, error) {
+	u, err := r.dao.FindByPhone(ctx, phone)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return r.entityToDomain(u), nil
 }
 
 func (r *UserRepository) FindById(ctx context.Context, id int64) (domain.User, error) {
@@ -48,11 +55,7 @@ func (r *UserRepository) FindById(ctx context.Context, id int64) (domain.User, e
 	if err != nil {
 		return domain.User{}, err
 	}
-	u = domain.User{
-		Id:       ue.Id,
-		Email:    ue.Email,
-		Password: ue.Password,
-	}
+	u = r.entityToDomain(ue)
 	go func() {
 		// 加入缓存
 		err = r.cache.Set(ctx, u)
@@ -64,8 +67,25 @@ func (r *UserRepository) FindById(ctx context.Context, id int64) (domain.User, e
 }
 
 func (r *UserRepository) Create(ctx context.Context, u domain.User) error {
-	return r.dao.Insert(ctx, dao.User{
-		Email:    u.Email,
-		Password: u.Password,
-	})
+	return r.dao.Insert(ctx, r.domainToEntity(u))
+}
+
+func (r *UserRepository) domainToEntity(user domain.User) dao.User {
+	return dao.User{
+		Id:       user.Id,
+		Email:    sql.NullString{String: user.Email, Valid: user.Email != ""},
+		Phone:    sql.NullString{String: user.Phone, Valid: user.Phone != ""},
+		Password: user.Password,
+		Ctime:    user.Ctime.UnixMilli(),
+	}
+}
+
+func (r *UserRepository) entityToDomain(user dao.User) domain.User {
+	return domain.User{
+		Id:       user.Id,
+		Email:    user.Email.String,
+		Password: user.Password,
+		Phone:    user.Phone.String,
+		Ctime:    time.UnixMilli(user.Ctime),
+	}
 }

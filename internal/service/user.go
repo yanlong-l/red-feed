@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/gin-gonic/gin"
 	"red-feed/internal/domain"
 	"red-feed/internal/repository"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrUserDuplicateEmail = repository.ErrUserDuplicateEmail
+var ErrUserDuplicateEmail = repository.ErrUserDuplicate
 var ErrInvalidUserOrPassword = errors.New("账号/邮箱或密码不对")
 
 type UserService struct {
@@ -50,4 +51,20 @@ func (s *UserService) Login(ctx context.Context, email, password string) (domain
 
 func (s *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
 	return s.repo.FindById(ctx, id)
+}
+
+func (s *UserService) FindOrCreate(ctx *gin.Context, phone string) (domain.User, error) {
+	u, err := s.repo.FindByPhone(ctx, phone)
+	if err != repository.ErrUserNotFound {
+		// nil 会进来
+		// 不为ErrUserNotFound的也会进来
+		return u, err
+	}
+	// 未找到用户， 创建一个
+	err = s.repo.Create(ctx, domain.User{Phone: phone})
+	u, err = s.repo.FindByPhone(ctx, phone)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return u, err
 }
