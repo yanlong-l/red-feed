@@ -14,6 +14,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var _ Handler = &UserHandler{} // 确保userHandler实现了 handler接口
+
 type UserHandler struct {
 	svc         *service.UserService
 	codeSvc     *service.CodeServcie
