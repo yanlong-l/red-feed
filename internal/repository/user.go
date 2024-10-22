@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"red-feed/internal/domain"
 	"red-feed/internal/repository/cache"
 	"red-feed/internal/repository/dao"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 var (
@@ -16,12 +17,19 @@ var (
 	ErrUserNotFound  = dao.ErrUserNotFound
 )
 
-type UserRepository struct {
-	dao   *dao.UserDAO
-	cache *cache.UserCache
+type CachedUserRepository interface {
+	Create(ctx context.Context, u domain.User) error
+	FindById(ctx context.Context, id int64) (domain.User, error)
+	FindByPhone(ctx *gin.Context, phone string) (domain.User, error)
+	FindByEmail(ctx context.Context, email string) (domain.User, error)
 }
 
-func NewUserRepository(dao *dao.UserDAO, uc *cache.UserCache) *UserRepository {
+type UserRepository struct {
+	dao   dao.GORMUserDAO
+	cache cache.RedisUserCache
+}
+
+func NewUserRepository(dao dao.GORMUserDAO, uc cache.RedisUserCache) CachedUserRepository {
 	return &UserRepository{
 		dao:   dao,
 		cache: uc,

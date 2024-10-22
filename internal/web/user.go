@@ -17,13 +17,13 @@ import (
 var _ Handler = &UserHandler{} // 确保userHandler实现了 handler接口
 
 type UserHandler struct {
-	svc         *service.UserService
-	codeSvc     *service.CodeServcie
+	svc         service.UserService
+	codeSvc     service.CodeService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
 }
 
-func NewUserHandler(svc *service.UserService, codeSvc *service.CodeServcie) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
 	const (
 		emailRegexPattern    = "^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$"
 		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
@@ -180,7 +180,7 @@ func (u *UserHandler) Logout(ctx *gin.Context) {
 }
 
 func (u *UserHandler) Edit(ctx *gin.Context) {
-
+	ctx.String(http.StatusOK, "这是你的edit")
 }
 
 func (u *UserHandler) Profile(ctx *gin.Context) {

@@ -16,11 +16,18 @@ var (
 	ErrUserNotFound  = gorm.ErrRecordNotFound
 )
 
+type GORMUserDAO interface {
+	FindByEmail(ctx context.Context, email string) (User, error)
+	FindById(ctx context.Context, id int64) (User, error)
+	FindByPhone(ctx *gin.Context, phone string) (User, error)
+	Insert(ctx context.Context, u User) error
+}
+
 type UserDAO struct {
 	db *gorm.DB
 }
 
-func NewUserDAO(db *gorm.DB) *UserDAO {
+func NewUserDAO(db *gorm.DB) GORMUserDAO {
 	return &UserDAO{
 		db: db,
 	}

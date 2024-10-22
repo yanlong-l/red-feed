@@ -3,13 +3,15 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/google/wire"
 	"red-feed/internal/repository"
 	"red-feed/internal/repository/cache"
 	"red-feed/internal/repository/dao"
 	"red-feed/internal/service"
+	"red-feed/internal/web"
 	"red-feed/ioc"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/wire"
 )
 
 func InitWebServer() *gin.Engine {

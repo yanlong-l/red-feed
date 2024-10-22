@@ -9,12 +9,18 @@ import (
 	"time"
 )
 
+type RedisUserCache interface {
+	Set(ctx context.Context, u domain.User) error
+	Get(ctx context.Context, id int64) (domain.User, error)
+	Key(id int64) string
+}
+
 type UserCache struct {
 	client     redis.Cmdable
 	expiration time.Duration
 }
 
-func NewUserCache(client redis.Cmdable) *UserCache {
+func NewUserCache(client redis.Cmdable) RedisUserCache {
 	return &UserCache{
 		client:     client,
 		expiration: time.Minute * 60,

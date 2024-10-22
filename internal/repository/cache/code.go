@@ -20,11 +20,16 @@ var (
 	ErrUnknownForCode         = errors.New("我也不知发生什么了，反正是跟 code 有关")
 )
 
+type RedisCodeCache interface {
+	Set(ctx context.Context, biz, phone, code string) error
+	Verify(ctx context.Context, biz, phone, code string) (bool, error)
+}
+
 type CodeCache struct {
 	client redis.Cmdable
 }
 
-func NewCodeCache(client redis.Cmdable) *CodeCache {
+func NewCodeCache(client redis.Cmdable) RedisCodeCache {
 	return &CodeCache{
 		client: client,
 	}

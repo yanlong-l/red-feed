@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"red-feed/internal/domain"
 	"red-feed/internal/repository"
+
+	"github.com/gin-gonic/gin"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,15 +14,22 @@ import (
 var ErrUserDuplicateEmail = repository.ErrUserDuplicate
 var ErrInvalidUserOrPassword = errors.New("账号/邮箱或密码不对")
 
-type UserService struct {
-	repo *repository.UserRepository
+type UserService interface {
+	SignUp(ctx context.Context, u domain.User) error
+	Login(ctx context.Context, email, password string) (domain.User, error)
+	Profile(ctx context.Context, id int64) (domain.User, error)
+	FindOrCreate(ctx *gin.Context, phone string) (domain.User, error)
 }
 
-func NewUserService(repo *repository.UserRepository) *UserService {
-	return &UserService{repo: repo}
+type userService struct {
+	repo repository.CachedUserRepository
 }
 
-func (s *UserService) SignUp(ctx context.Context, u domain.User) error {
+func NewUserService(repo repository.CachedUserRepository) UserService {
+	return &userService{repo: repo}
+}
+
+func (s *userService) SignUp(ctx context.Context, u domain.User) error {
 	// 由svc来做密码加密
 	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -31,7 +39,7 @@ func (s *UserService) SignUp(ctx context.Context, u domain.User) error {
 	return s.repo.Create(ctx, u)
 }
 
-func (s *UserService) Login(ctx context.Context, email, password string) (domain.User, error) {
+func (s *userService) Login(ctx context.Context, email, password string) (domain.User, error) {
 	// 先找用户
 	u, err := s.repo.FindByEmail(ctx, email)
 	if err == repository.ErrUserNotFound {
@@ -49,11 +57,11 @@ func (s *UserService) Login(ctx context.Context, email, password string) (domain
 	return u, nil
 }
 
-func (s *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
+func (s *userService) Profile(ctx context.Context, id int64) (domain.User, error) {
 	return s.repo.FindById(ctx, id)
 }
 
-func (s *UserService) FindOrCreate(ctx *gin.Context, phone string) (domain.User, error) {
+func (s *userService) FindOrCreate(ctx *gin.Context, phone string) (domain.User, error) {
 	u, err := s.repo.FindByPhone(ctx, phone)
 	if err != repository.ErrUserNotFound {
 		// nil 会进来
@@ -62,6 +70,9 @@ func (s *UserService) FindOrCreate(ctx *gin.Context, phone string) (domain.User,
 	}
 	// 未找到用户， 创建一个
 	err = s.repo.Create(ctx, domain.User{Phone: phone})
+	if err != nil {
+		return domain.User{}, err
+	}
 	u, err = s.repo.FindByPhone(ctx, phone)
 	if err != nil {
 		return domain.User{}, err

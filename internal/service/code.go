@@ -16,19 +16,24 @@ var (
 	ErrCodeSendTooMany        = repository.ErrCodeSendTooMany
 )
 
-type CodeServcie struct {
-	smsSvc   sms.Service
-	codeRepo *repository.CodeRepository
+type CodeService interface {
+	Send(ctx context.Context, biz, phone string) error
+	Verfiy(ctx context.Context, biz, phone, code string) (bool, error)
 }
 
-func NewCodeService(smsSvc sms.Service, codeRepo *repository.CodeRepository) *CodeServcie {
-	return &CodeServcie{
+type codeService struct {
+	smsSvc   sms.Service
+	codeRepo repository.CachedCodeRepository
+}
+
+func NewCodeService(smsSvc sms.Service, codeRepo repository.CachedCodeRepository) CodeService {
+	return &codeService{
 		smsSvc:   smsSvc,
 		codeRepo: codeRepo,
 	}
 }
 
-func (cs *CodeServcie) Send(ctx context.Context, biz, phone string) error {
+func (cs *codeService) Send(ctx context.Context, biz, phone string) error {
 	// 生成一个验证码
 	code := cs.generatCode()
 	// 缓存这个验证码
@@ -44,11 +49,11 @@ func (cs *CodeServcie) Send(ctx context.Context, biz, phone string) error {
 	return nil
 }
 
-func (cs *CodeServcie) Verfiy(ctx context.Context, biz, phone, code string) (bool, error) {
+func (cs *codeService) Verfiy(ctx context.Context, biz, phone, code string) (bool, error) {
 	return cs.codeRepo.Verify(ctx, biz, phone, code)
 }
 
-func (cs *CodeServcie) generatCode() string {
+func (cs *codeService) generatCode() string {
 	const letterBytes = "0123456789" // 只包含数字
 	const length = 6                 // 验证码长度为6位
 	b := make([]byte, length)
