@@ -52,7 +52,7 @@ func (cs *codeService) Send(ctx context.Context, biz, phone string) error {
 func (cs *codeService) Verfiy(ctx context.Context, biz, phone, code string) (bool, error) {
 	return cs.codeRepo.Verify(ctx, biz, phone, code)
 }
-
+ 
 func (cs *codeService) generatCode() string {
 	const letterBytes = "0123456789" // 只包含数字
 	const length = 6                 // 验证码长度为6位

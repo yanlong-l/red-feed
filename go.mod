@@ -1,6 +1,6 @@
 module red-feed
 
-go 1.21.0
+go 1.22
 
 toolchain go1.22.2
 
@@ -22,6 +22,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1015
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms v1.0.1015
+	go.uber.org/mock v0.5.0
 	golang.org/x/crypto v0.27.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.12
