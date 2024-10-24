@@ -64,14 +64,19 @@ func (r *UserRepository) FindById(ctx context.Context, id int64) (domain.User, e
 		return domain.User{}, err
 	}
 	u = r.entityToDomain(ue)
-	go func() {
-		// 加入缓存
-		err = r.cache.Set(ctx, u)
-		if err != nil {
-			fmt.Println("写入缓存失败")
-		}
-	}()
-	return u, nil
+	// go func() {
+	// 	// 加入缓存
+	// 	err = r.cache.Set(ctx, u)
+	// 	if err != nil {
+	// 		fmt.Println("写入缓存失败")
+	// 	}
+	// }()
+	// 加入缓存
+	err = r.cache.Set(ctx, u)
+	if err != nil {
+		fmt.Println("写入缓存失败")
+	}
+	return u, err
 }
 
 func (r *UserRepository) Create(ctx context.Context, u domain.User) error {
