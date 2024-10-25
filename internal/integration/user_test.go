@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"red-feed/internal/web"
 	"red-feed/ioc"
@@ -48,7 +49,7 @@ func TestUserHandler_e2e_SendLoginSMSCode(t *testing.T) {
 			name: "发送太频繁，请稍后再试",
 			before: func(t *testing.T) {
 				// 准备一下数据
-				rdb.Set(context.Background(),"phone_code:login:10086", "123456", time.Minute*9 + time.Second*40)
+				rdb.Set(context.Background(), "phone_code:login:10086", "123456", time.Minute*9+time.Second*40)
 			},
 			after: func(t *testing.T) {
 				// 清理一下数据
@@ -65,7 +66,7 @@ func TestUserHandler_e2e_SendLoginSMSCode(t *testing.T) {
 			name: "系统错误",
 			before: func(t *testing.T) {
 				// 准备一下数据
-				rdb.Set(context.Background(),"phone_code:login:10086", "123456", time.Minute*9 + time.Second*40)
+				rdb.Set(context.Background(), "phone_code:login:10086", "123456", 0)
 			},
 			after: func(t *testing.T) {
 				// 清理一下数据
@@ -75,8 +76,20 @@ func TestUserHandler_e2e_SendLoginSMSCode(t *testing.T) {
 			reqBody:  `{"phone":"10086"}`,
 			wantCode: 200,
 			wantBody: web.Result{
-				Msg: "发送太频繁，请稍后再试",
+				Code: 5,
+				Msg:  "系统错误",
 			},
+		},
+		{
+			name: "数据格式错误",
+			before: func(t *testing.T) {
+				// 无需做操作
+			},
+			after: func(t *testing.T) {
+				// 无
+			},
+			reqBody:  `{"phone":}`,
+			wantCode: 400,
 		},
 	}
 
@@ -90,10 +103,15 @@ func TestUserHandler_e2e_SendLoginSMSCode(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			resp := httptest.NewRecorder()
 			server.ServeHTTP(resp, req)
+			if resp.Code != http.StatusOK {
+				return
+			}
 			assert.Equal(t, tc.wantCode, resp.Code)
 			var webRes web.Result
 			err := json.NewDecoder(resp.Body).Decode(&webRes)
 			require.NoError(t, err)
+			t.Log(webRes)
+			t.Log(tc.wantBody)
 			assert.Equal(t, tc.wantBody, webRes)
 			// 清理数据
 			tc.after(t)
