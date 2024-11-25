@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -19,7 +18,8 @@ var (
 type GORMUserDAO interface {
 	FindByEmail(ctx context.Context, email string) (User, error)
 	FindById(ctx context.Context, id int64) (User, error)
-	FindByPhone(ctx *gin.Context, phone string) (User, error)
+	FindByPhone(ctx context.Context, phone string) (User, error)
+	FindByWechat(ctx context.Context, openID string) (User, error)
 	Insert(ctx context.Context, u User) error
 }
 
@@ -31,6 +31,12 @@ func NewUserDAO(db *gorm.DB) GORMUserDAO {
 	return &UserDAO{
 		db: db,
 	}
+}
+
+func (dao *UserDAO) FindByWechat(ctx context.Context, openID string) (User, error) {
+	var user User
+	result := dao.db.WithContext(ctx).Where("wechat_open_id = ?", openID).First(&user)
+	return user, result.Error
 }
 
 func (dao *UserDAO) FindByEmail(ctx context.Context, email string) (User, error) {
@@ -45,7 +51,7 @@ func (dao *UserDAO) FindById(ctx context.Context, id int64) (User, error) {
 	return user, result.Error
 }
 
-func (dao *UserDAO) FindByPhone(ctx *gin.Context, phone string) (User, error) {
+func (dao *UserDAO) FindByPhone(ctx context.Context, phone string) (User, error) {
 	var user User
 	result := dao.db.WithContext(ctx).Where("phone = ?", phone).First(&user)
 	return user, result.Error
@@ -75,6 +81,10 @@ type User struct {
 	Email    sql.NullString `gorm:"unique"`
 	Phone    sql.NullString `gorm:"unique"`
 	Password string
+	// 微信的字段
+	WechatUnionID sql.NullString
+	WechatOpenID  sql.NullString `gorm:"unique"`
+
 	// 创建时间，毫秒数
 	Ctime int64
 	// 更新时间，毫秒数

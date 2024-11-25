@@ -22,6 +22,7 @@ type CachedUserRepository interface {
 	FindById(ctx context.Context, id int64) (domain.User, error)
 	FindByPhone(ctx *gin.Context, phone string) (domain.User, error)
 	FindByEmail(ctx context.Context, email string) (domain.User, error)
+	FindByWechat(ctx context.Context, openID string) (domain.User, error)
 }
 
 type UserRepository struct {
@@ -34,6 +35,14 @@ func NewUserRepository(dao dao.GORMUserDAO, uc cache.RedisUserCache) CachedUserR
 		dao:   dao,
 		cache: uc,
 	}
+}
+
+func (r *UserRepository) FindByWechat(ctx context.Context, openID string) (domain.User, error) {
+	u, err := r.dao.FindByWechat(ctx, openID)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return r.entityToDomain(u), nil
 }
 
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {
@@ -89,7 +98,15 @@ func (r *UserRepository) domainToEntity(user domain.User) dao.User {
 		Email:    sql.NullString{String: user.Email, Valid: user.Email != ""},
 		Phone:    sql.NullString{String: user.Phone, Valid: user.Phone != ""},
 		Password: user.Password,
-		Ctime:    user.Ctime.UnixMilli(),
+		WechatOpenID: sql.NullString{
+			String: user.WechatInfo.OpenID,
+			Valid:  user.WechatInfo.OpenID != "",
+		},
+		WechatUnionID: sql.NullString{
+			String: user.WechatInfo.UnionID,
+			Valid:  user.WechatInfo.UnionID != "",
+		},
+		Ctime: user.Ctime.UnixMilli(),
 	}
 }
 
@@ -99,6 +116,10 @@ func (r *UserRepository) entityToDomain(user dao.User) domain.User {
 		Email:    user.Email.String,
 		Password: user.Password,
 		Phone:    user.Phone.String,
-		Ctime:    time.UnixMilli(user.Ctime),
+		WechatInfo: domain.WechatInfo{
+			OpenID:  user.WechatOpenID.String,
+			UnionID: user.WechatUnionID.String,
+		},
+		Ctime: time.UnixMilli(user.Ctime),
 	}
 }

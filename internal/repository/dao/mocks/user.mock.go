@@ -14,7 +14,6 @@ import (
 	dao "red-feed/internal/repository/dao"
 	reflect "reflect"
 
-	gin "github.com/gin-gonic/gin"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -73,7 +72,7 @@ func (mr *MockGORMUserDAOMockRecorder) FindById(ctx, id any) *gomock.Call {
 }
 
 // FindByPhone mocks base method.
-func (m *MockGORMUserDAO) FindByPhone(ctx *gin.Context, phone string) (dao.User, error) {
+func (m *MockGORMUserDAO) FindByPhone(ctx context.Context, phone string) (dao.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindByPhone", ctx, phone)
 	ret0, _ := ret[0].(dao.User)
@@ -85,6 +84,21 @@ func (m *MockGORMUserDAO) FindByPhone(ctx *gin.Context, phone string) (dao.User,
 func (mr *MockGORMUserDAOMockRecorder) FindByPhone(ctx, phone any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByPhone", reflect.TypeOf((*MockGORMUserDAO)(nil).FindByPhone), ctx, phone)
+}
+
+// FindByWechat mocks base method.
+func (m *MockGORMUserDAO) FindByWechat(ctx context.Context, openID string) (dao.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByWechat", ctx, openID)
+	ret0, _ := ret[0].(dao.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByWechat indicates an expected call of FindByWechat.
+func (mr *MockGORMUserDAOMockRecorder) FindByWechat(ctx, openID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByWechat", reflect.TypeOf((*MockGORMUserDAO)(nil).FindByWechat), ctx, openID)
 }
 
 // Insert mocks base method.

@@ -19,6 +19,7 @@ type UserService interface {
 	Login(ctx context.Context, email, password string) (domain.User, error)
 	Profile(ctx context.Context, id int64) (domain.User, error)
 	FindOrCreate(ctx *gin.Context, phone string) (domain.User, error)
+	FindOrCreateByWechat(ctx *gin.Context, wechatInfo domain.WechatInfo) (domain.User, error)
 }
 
 type userService struct {
@@ -78,4 +79,21 @@ func (s *userService) FindOrCreate(ctx *gin.Context, phone string) (domain.User,
 		return domain.User{}, err
 	}
 	return u, err
+}
+
+func (s *userService) FindOrCreateByWechat(ctx *gin.Context, wechatInfo domain.WechatInfo) (domain.User, error) {
+	u, err := s.repo.FindByWechat(ctx, wechatInfo.OpenID)
+	// 如果找到了，或发生错误，直接返回
+	if err != repository.ErrUserNotFound {
+		return u, err
+	}
+	// 如果没有找到，则创建
+	u = domain.User{
+		WechatInfo: wechatInfo,
+	}
+	err = s.repo.Create(ctx, u)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return s.repo.FindByWechat(ctx, wechatInfo.OpenID)
 }
