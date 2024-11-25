@@ -1,14 +1,16 @@
 package ioc
 
 import (
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"red-feed/internal/web"
 	"red-feed/internal/web/middleware"
 	"red-feed/pkg/ginx/middlewares/ratelimit"
+	pkg_ratelimit "red-feed/pkg/ratelimit"
 	"strings"
 	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler) *gin.Engine {
@@ -19,8 +21,9 @@ func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler) *gin.Engine
 }
 
 func InitMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
+	limiter := pkg_ratelimit.NewRedisSlidingWindowLimiter(redisClient, 200, time.Second)
 	return []gin.HandlerFunc{
-		ratelimit.NewBuilder(redisClient, time.Second, 200).Build(),
+		ratelimit.NewBuilder(limiter).Build(),
 		corsHandlerFunc(),
 		middleware.NewLoginJWTMiddlewareBuilder().
 			IgnorePaths("/users/login").
