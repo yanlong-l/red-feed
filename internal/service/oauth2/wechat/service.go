@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"red-feed/internal/domain"
-
-	"github.com/google/uuid"
 )
 
 const (
@@ -15,8 +13,8 @@ const (
 )
 
 type Service interface {
-	AuthURL(ctx context.Context) (string, error)
-	VerifyCode(ctx context.Context, code string, state string) (domain.WechatInfo, error)
+	AuthURL(ctx context.Context, state string) (string, error)
+	VerifyCode(ctx context.Context, code string) (domain.WechatInfo, error)
 }
 
 type service struct {
@@ -32,15 +30,17 @@ func NewService(appId string, appSecret string) Service {
 	}
 }
 
-func (s *service) AuthURL(ctx context.Context) (string, error) {
+func (s *service) AuthURL(ctx context.Context, state string) (string, error) {
 	// 构造url模板
 	const urlPattern = "https://open.weixin.qq.com/connect/qrconnect?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_login&state=%s#wechat_redirect"
-	// 生成随机state
-	state := uuid.New()
 	return fmt.Sprintf(urlPattern, s.appId, redirectURI, state), nil
 }
 
-func (s *service) VerifyCode(ctx context.Context, code string, state string) (domain.WechatInfo, error) {
+func (s *service) VerifyState(ctx context.Context, state string) (error) {
+	return nil
+}
+
+func (s *service) VerifyCode(ctx context.Context, code string) (domain.WechatInfo, error) {
 	// 根据code和state尝试去请求微信换取access_token等信息
 	const targetPattern = "https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code"
 	target := fmt.Sprintf(targetPattern, s.appId, s.appSecret, code)
