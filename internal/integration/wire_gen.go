@@ -13,6 +13,7 @@ import (
 	"red-feed/internal/repository/dao"
 	"red-feed/internal/service"
 	"red-feed/internal/web"
+	"red-feed/internal/web/jwt"
 	"red-feed/ioc"
 )
 
@@ -20,7 +21,8 @@ import (
 
 func InitWebServer() *gin.Engine {
 	cmdable := ioc.InitRedis()
-	v := ioc.InitMiddlewares(cmdable)
+	handler := ijwt.NewRedisJWTHandler(cmdable)
+	v := ioc.InitMiddlewares(cmdable, handler)
 	db := ioc.InitDB()
 	gormUserDAO := dao.NewUserDAO(db)
 	redisUserCache := cache.NewUserCache(cmdable)
@@ -30,7 +32,7 @@ func InitWebServer() *gin.Engine {
 	redisCodeCache := cache.NewCodeCache(cmdable)
 	cachedCodeRepository := repository.NewCodeRepository(redisCodeCache)
 	codeService := service.NewCodeService(smsService, cachedCodeRepository)
-	userHandler := web.NewUserHandler(userService, codeService)
+	userHandler := web.NewUserHandler(userService, codeService, handler)
 	wechatService := ioc.InitWechatService()
 	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userService)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler)

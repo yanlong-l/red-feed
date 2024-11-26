@@ -2,8 +2,7 @@ package middleware
 
 import (
 	"net/http"
-	"red-feed/internal/web"
-	"strings"
+	ijwt "red-feed/internal/web/jwt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -11,10 +10,13 @@ import (
 
 type LoginJWTMiddlewareBuilder struct {
 	paths []string
+	ijwt.Handler
 }
 
-func NewLoginJWTMiddlewareBuilder() *LoginJWTMiddlewareBuilder {
-	return &LoginJWTMiddlewareBuilder{}
+func NewLoginJWTMiddlewareBuilder(jwtHdl ijwt.Handler) *LoginJWTMiddlewareBuilder {
+	return &LoginJWTMiddlewareBuilder{
+		Handler: jwtHdl,
+	}
 }
 
 func (l *LoginJWTMiddlewareBuilder) IgnorePaths(path string) *LoginJWTMiddlewareBuilder {
@@ -31,16 +33,10 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			}
 		}
 		// 校验是否带有jwt token, 从请求头的authorization中解析
-		authStr := ctx.Request.Header.Get("Authorization")
-		tokenSplited := strings.Split(authStr, " ")
-		if authStr == "" || len(tokenSplited) != 2 {
-			ctx.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		tokenStr := tokenSplited[1]
-		uc := &web.UserClaims{}
+		tokenStr := l.ExtractToken(ctx)
+		uc := &ijwt.UserClaims{}
 		token, err := jwt.ParseWithClaims(tokenStr, uc, func(token *jwt.Token) (interface{}, error) {
-			return []byte("95osj3fUD7fo0mlYdDbncXz4VD2igvf0"), nil
+			return ijwt.AtKey, nil
 		})
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
@@ -48,6 +44,13 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		}
 		// 校验token是否有效
 		if !token.Valid || token == nil || uc.Uid == 0 {
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		// 校验Ssid是否已经被标识为过期了
+		err = l.CheckSession(ctx, uc.Ssid)
+		if err != nil {
+			// 要么 redis 有问题，要么已经退出登录
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}

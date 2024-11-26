@@ -142,7 +142,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 			userSvc := tc.mock(ctrl)
 			// 暂时用不上 codeSvc
 			server := gin.Default()
-			userHdl := NewUserHandler(userSvc, nil)
+			userHdl := NewUserHandler(userSvc, nil, nil)
 			userHdl.RegisterRoutes(server)
 
 			req, err := http.NewRequest(http.MethodPost, "/users/signup", bytes.NewBuffer([]byte(tc.reqBody)))

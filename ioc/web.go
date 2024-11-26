@@ -2,6 +2,7 @@ package ioc
 
 import (
 	"red-feed/internal/web"
+	ijwt "red-feed/internal/web/jwt"
 	"red-feed/internal/web/middleware"
 	"red-feed/pkg/ginx/middlewares/ratelimit"
 	pkg_ratelimit "red-feed/pkg/ratelimit"
@@ -21,12 +22,12 @@ func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, oauth2Wecha
 	return server
 }
 
-func InitMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
+func InitMiddlewares(redisClient redis.Cmdable, jwtHdl ijwt.Handler) []gin.HandlerFunc {
 	limiter := pkg_ratelimit.NewRedisSlidingWindowLimiter(redisClient, 200, time.Second)
 	return []gin.HandlerFunc{
 		ratelimit.NewBuilder(limiter).Build(),
 		corsHandlerFunc(),
-		middleware.NewLoginJWTMiddlewareBuilder().
+		middleware.NewLoginJWTMiddlewareBuilder(jwtHdl).
 			IgnorePaths("/users/login").
 			IgnorePaths("/users/refresh_token").
 			IgnorePaths("/users/signup").

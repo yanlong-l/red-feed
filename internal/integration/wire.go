@@ -8,6 +8,7 @@ import (
 	"red-feed/internal/repository/dao"
 	"red-feed/internal/service"
 	"red-feed/internal/web"
+	ijwt "red-feed/internal/web/jwt"
 	"red-feed/ioc"
 
 	"github.com/gin-gonic/gin"
@@ -37,7 +38,7 @@ func InitWebServer() *gin.Engine {
 		// web handler
 		web.NewUserHandler,
 		web.NewOAuth2WechatHandler,
-
+		ijwt.NewRedisJWTHandler,
 		ioc.InitMiddlewares,
 		ioc.InitWebServer,
 	)

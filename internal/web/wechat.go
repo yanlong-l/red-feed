@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"red-feed/internal/service"
 	"red-feed/internal/service/oauth2/wechat"
+	ijwt "red-feed/internal/web/jwt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +20,7 @@ type OAuth2WechatHandler struct {
 	wechatSvc wechat.Service
 	userSvc   service.UserService
 	stateKey  []byte
-	jwtHandler
+	ijwt.Handler
 }
 
 func NewOAuth2WechatHandler(wechatSvc wechat.Service, userSvc service.UserService) *OAuth2WechatHandler {
@@ -138,7 +139,7 @@ func (h *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 	}
 
 	// 生成jwt token并设置header
-	err = h.setJWTToken(ctx, user.Id)
+	err = h.SetLoginToken(ctx, user.Id)
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
