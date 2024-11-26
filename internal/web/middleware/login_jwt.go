@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"red-feed/internal/web"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -57,25 +56,26 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			return
 		}
 
+		// 有了长短token机制，在这里取消token自动刷新机制
 		// 每10s刷新一次token
-		now := time.Now()
-		expireTime := uc.RegisteredClaims.ExpiresAt.Time
-		if expireTime.Sub(now) < time.Second*50 { // 已经超过10s了
-			claims := web.UserClaims{
-				RegisteredClaims: jwt.RegisteredClaims{
-					ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
-				},
-				Uid:       uc.Uid,
-				UserAgent: ctx.Request.UserAgent(),
-			}
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-			tokenStr, err := token.SignedString([]byte("95osj3fUD7fo0mlYdDbncXz4VD2igvf0"))
-			if err != nil {
-				ctx.AbortWithStatus(http.StatusInternalServerError)
-				return
-			}
-			ctx.Header("x-jwt-token", tokenStr)
-		}
+		// now := time.Now()
+		// expireTime := uc.RegisteredClaims.ExpiresAt.Time
+		// if expireTime.Sub(now) < time.Second*50 { // 已经超过10s了
+		// 	claims := web.UserClaims{
+		// 		RegisteredClaims: jwt.RegisteredClaims{
+		// 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		// 		},
+		// 		Uid:       uc.Uid,
+		// 		UserAgent: ctx.Request.UserAgent(),
+		// 	}
+		// 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		// 	tokenStr, err := token.SignedString([]byte("95osj3fUD7fo0mlYdDbncXz4VD2igvf0"))
+		// 	if err != nil {
+		// 		ctx.AbortWithStatus(http.StatusInternalServerError)
+		// 		return
+		// 	}
+		// 	ctx.Header("x-jwt-token", tokenStr)
+		// }
 		ctx.Set("claims", uc)
 	}
 }

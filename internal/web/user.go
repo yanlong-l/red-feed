@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"red-feed/internal/domain"
 	"red-feed/internal/service"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
+	"github.com/golang-jwt/jwt/v5"
 
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-gonic/gin"
@@ -45,6 +47,38 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/edit", u.Edit)
 	ug.POST("/login_sms/code/send", u.SendLoginSMSCode)
 	ug.POST("/login_sms", u.LoginSMS)
+	ug.POST("/refresh_token", u.RefreshToken)
+}
+
+func (u *UserHandler) RefreshToken(ctx *gin.Context) {
+	// 验证refresh token是否有效，如果有效，则办法一个新的access token
+	// 从header中读取refresh token
+	authStr := ctx.Request.Header.Get("Authorization")
+	tokenSplited := strings.Split(authStr, " ")
+	if authStr == "" || len(tokenSplited) != 2 {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	tokenStr := tokenSplited[1]
+	// 解析token
+	var uc UserClaims
+	token, err := jwt.ParseWithClaims(tokenStr, &uc, func(t *jwt.Token) (interface{}, error) {
+		return []byte("95osj3fUD7fo0mlYdDbncXz4VD2igvf1"), nil
+	})
+	if err != nil || !token.Valid {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	// 生成新的token
+	err = u.setJWTToken(ctx, uc.Uid)
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "刷新成功",
+	})
+
 }
 
 func (u *UserHandler) SignUp(ctx *gin.Context) {
@@ -115,7 +149,7 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	if err != nil {
 		ctx.String(http.StatusOK, "系统错误")
 	}
-	err = u.setJWTToken(ctx, user.Id)
+	err = u.setLoginToken(ctx, user.Id)
 	if err != nil {
 		ctx.String(http.StatusOK, "系统错误")
 	}
