@@ -84,11 +84,17 @@ func (h *RedisJWTHandler) ClearToken(ctx *gin.Context) error {
 
 func (h *RedisJWTHandler) CheckSession(ctx *gin.Context, ssid string) error {
 	res, err := h.cmd.Exists(ctx.Request.Context(), fmt.Sprintf("users:ssid:%s", ssid)).Result()
-	// 如果redis故障或result为0，则说明ssid已经失效 返回nil
-	if err != nil || res == 0 {
+	switch err {
+	case redis.Nil:
 		return nil
+	case nil:
+		if res == 0 {
+			return nil
+		}
+		return errors.New("session已过期")
+	default:
+		return err
 	}
-	return errors.New("Ssid存在")
 }
 
 func (h *RedisJWTHandler) ExtractToken(ctx *gin.Context) string {
