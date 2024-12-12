@@ -9,11 +9,11 @@ import (
 func main() {
 	initLogger()
 	initViper()
-	// server := InitWebServer()
-	// err := server.Run(":8080")
-	// if err != nil {
-	// 	return
-	// }
+	server := InitWebServer()
+	err := server.Run(":8080")
+	if err != nil {
+		return
+	}
 }
 
 func initViper() {

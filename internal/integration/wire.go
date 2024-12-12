@@ -41,6 +41,8 @@ func InitWebServer() *gin.Engine {
 		ijwt.NewRedisJWTHandler,
 		ioc.InitMiddlewares,
 		ioc.InitWebServer,
+
+		ioc.InitLogger,
 	)
 	return new(gin.Engine)
 }

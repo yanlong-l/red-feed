@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"red-feed/internal/domain"
+	"red-feed/pkg/logger"
 )
 
 const (
@@ -21,12 +22,14 @@ type service struct {
 	appId     string
 	appSecret string
 	client    *http.Client
+	l         logger.Logger
 }
 
-func NewService(appId string, appSecret string) Service {
+func NewService(appId string, appSecret string, l logger.Logger) Service {
 	return &service{
 		appId:     appId,
 		appSecret: appSecret,
+		l:         l,
 	}
 }
 
@@ -36,7 +39,7 @@ func (s *service) AuthURL(ctx context.Context, state string) (string, error) {
 	return fmt.Sprintf(urlPattern, s.appId, redirectURI, state), nil
 }
 
-func (s *service) VerifyState(ctx context.Context, state string) (error) {
+func (s *service) VerifyState(ctx context.Context, state string) error {
 	return nil
 }
 

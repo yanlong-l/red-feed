@@ -1,10 +1,13 @@
 package ioc
 
 import (
+	"context"
 	"red-feed/internal/web"
 	ijwt "red-feed/internal/web/jwt"
 	"red-feed/internal/web/middleware"
+	"red-feed/pkg/ginx/middlewares/logger"
 	"red-feed/pkg/ginx/middlewares/ratelimit"
+	ilogger "red-feed/pkg/logger"
 	pkg_ratelimit "red-feed/pkg/ratelimit"
 	"strings"
 	"time"
@@ -22,10 +25,14 @@ func InitWebServer(mdls []gin.HandlerFunc, userHdl *web.UserHandler, oauth2Wecha
 	return server
 }
 
-func InitMiddlewares(redisClient redis.Cmdable, jwtHdl ijwt.Handler) []gin.HandlerFunc {
+func InitMiddlewares(redisClient redis.Cmdable, jwtHdl ijwt.Handler, l ilogger.Logger) []gin.HandlerFunc {
 	limiter := pkg_ratelimit.NewRedisSlidingWindowLimiter(redisClient, 200, time.Second)
 	return []gin.HandlerFunc{
 		ratelimit.NewBuilder(limiter).Build(),
+		logger.NewBuilder(func(ctx context.Context, al *logger.AccessLog) {
+			l.Info("access log", ilogger.Field{Key: "access log desc", Value: al})
+		}).AllowReqBody(true).
+			AllowRespBody(true).Build(),
 		corsHandlerFunc(),
 		middleware.NewLoginJWTMiddlewareBuilder(jwtHdl).
 			IgnorePaths("/users/login").

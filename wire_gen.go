@@ -17,12 +17,17 @@ import (
 	"red-feed/ioc"
 )
 
+import (
+	_ "github.com/spf13/viper/remote"
+)
+
 // Injectors from wire.go:
 
 func InitWebServer() *gin.Engine {
 	cmdable := ioc.InitRedis()
 	handler := ijwt.NewRedisJWTHandler(cmdable)
-	v := ioc.InitMiddlewares(cmdable, handler)
+	logger := ioc.InitLogger()
+	v := ioc.InitMiddlewares(cmdable, handler, logger)
 	db := ioc.InitDB()
 	gormUserDAO := dao.NewUserDAO(db)
 	redisUserCache := cache.NewUserCache(cmdable)
@@ -33,7 +38,7 @@ func InitWebServer() *gin.Engine {
 	cachedCodeRepository := repository.NewCodeRepository(redisCodeCache)
 	codeService := service.NewCodeService(smsService, cachedCodeRepository)
 	userHandler := web.NewUserHandler(userService, codeService, handler)
-	wechatService := ioc.InitWechatService()
+	wechatService := ioc.InitWechatService(logger)
 	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userService)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler)
 	return engine
