@@ -1,4 +1,4 @@
-package ioc
+package startup
 
 import (
 	"red-feed/internal/repository/dao"
@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func InitDB() *gorm.DB {
+func InitTestDB() *gorm.DB {
 	type DBConfig struct {
 		DSN string `yaml:"dsn"`
 	}
