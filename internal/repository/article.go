@@ -8,10 +8,20 @@ import (
 
 type ArticleRepository interface {
 	Create(ctx context.Context, article domain.Article) (id int64, err error)
+	Update(ctx context.Context, article domain.Article) error
 }
 
 type CachedArticleRepository struct {
 	dao dao.ArticleDao
+}
+
+func (r *CachedArticleRepository) Update(ctx context.Context, article domain.Article) error {
+	return r.dao.Update(ctx, dao.Article{
+		Id:       article.Id,
+		Title:    article.Title,
+		Content:  article.Content,
+		AuthorId: article.Author.Id,
+	})
 }
 
 func (r *CachedArticleRepository) Create(ctx context.Context, article domain.Article) (id int64, err error) {

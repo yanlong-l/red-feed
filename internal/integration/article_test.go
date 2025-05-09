@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"red-feed/internal/integration/startup"
+	"red-feed/internal/repository/dao"
 	ijwt "red-feed/internal/web/jwt"
 	"testing"
 )
@@ -61,13 +63,98 @@ func (s *ArticleTestSuite) TestEdit() {
 			before: func() {},
 			after:  func() {},
 			art: Article{
-				"title1",
-				"content1",
+				Title:   "title1",
+				Content: "content1",
 			},
 			wantCode: http.StatusOK,
 			wantRes: Result[int64]{
 				Data: 1,
 				Msg:  "OK",
+			},
+		},
+		{
+			name: "修改已有帖子，并保存",
+			before: func() {
+				// 提前准备数据
+				err := s.db.Create(dao.Article{
+					Id:       2,
+					Title:    "title1",
+					Content:  "content1",
+					AuthorId: 123,
+					Ctime:    1,
+					Utime:    1,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func() {
+				// 数据库验证数据
+				var art dao.Article
+				ctx := context.Background()
+				err := s.db.WithContext(ctx).Find(&art, "id = ?", 2).Error
+				assert.NoError(t, err)
+				// 验证
+				assert.Equal(t, art.Content, "content2")
+				assert.Equal(t, art.Title, "title2")
+				assert.True(t, art.Utime > 1)
+				art.Utime = 0
+				assert.Equal(t, art, dao.Article{
+					Id:       2,
+					Title:    "title2",
+					Content:  "content2",
+					AuthorId: 123,
+					Ctime:    1,
+					Utime:    0,
+				})
+			},
+			art: Article{
+				Id:      2,
+				Title:   "title2",
+				Content: "content2",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Data: 2,
+				Msg:  "OK",
+			},
+		},
+		{
+			name: "修改别人的帖子",
+			before: func() {
+				// 提前准备数据
+				err := s.db.Create(dao.Article{
+					Id:       3,
+					Title:    "title1",
+					Content:  "content1",
+					AuthorId: 456,
+					Ctime:    1,
+					Utime:    1,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func() {
+				// 数据库验证数据
+				var art dao.Article
+				ctx := context.Background()
+				err := s.db.WithContext(ctx).Find(&art, "id = ?", 3).Error
+				assert.NoError(t, err)
+				assert.Equal(t, art, dao.Article{
+					Id:       3,
+					Title:    "title1",
+					Content:  "content1",
+					AuthorId: 456,
+					Ctime:    1,
+					Utime:    1,
+				})
+			},
+			art: Article{
+				Id:      3,
+				Title:   "title2",
+				Content: "content2",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Code: 5,
+				Msg:  "系统错误",
 			},
 		},
 	}
@@ -103,6 +190,7 @@ func TestArticle(t *testing.T) {
 }
 
 type Article struct {
+	Id      int64  `json:"id"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
 }

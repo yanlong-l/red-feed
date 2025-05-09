@@ -15,6 +15,9 @@ type articleService struct {
 }
 
 func (s *articleService) Save(ctx context.Context, article domain.Article) (id int64, err error) {
+	if article.Id != 0 {
+		return article.Id, s.repo.Update(ctx, article)
+	}
 	return s.repo.Create(ctx, article)
 }
 
