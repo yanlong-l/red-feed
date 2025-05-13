@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,6 +42,7 @@ func (s *ArticleTestSuite) TearDownSuite() {
 	// 清理测试环境
 	// 清空所有数据，并且自增主键恢复到 1
 	s.db.Exec("TRUNCATE TABLE articles")
+	s.db.Exec("TRUNCATE TABLE publish_articles")
 }
 
 func (s *ArticleTestSuite) TestEdit() {
@@ -182,12 +184,12 @@ func (s *ArticleTestSuite) TestEdit() {
 			tc.after()
 		})
 	}
-
+	s.TearDownSuite()
 }
 
 func (s *ArticleTestSuite) TestPublish() {
 	t := s.T()
-	var testcases []struct {
+	testcases := []struct {
 		name string
 		// 集成测试准备数据
 		before func()
@@ -199,6 +201,169 @@ func (s *ArticleTestSuite) TestPublish() {
 		wantCode int
 		// 预期的返回
 		wantRes Result[int64]
+	}{
+		{
+			name:   "新建帖子并发表成功",
+			before: func() {},
+			after:  func() {},
+			art: Article{
+				Title:   "title1",
+				Content: "content1",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Data: 1,
+				Msg:  "OK",
+			},
+		},
+		{
+			name: "更新已有的帖子并第一次发表",
+			before: func() {
+				err := s.db.Create(dao.Article{
+					Id:       2,
+					Title:    "title1",
+					Content:  "content1",
+					AuthorId: 123,
+					Ctime:    1,
+					Utime:    1,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func() {
+				var art dao.Article
+				err := s.db.WithContext(context.Background()).Find(&art, "id = ?", 2).Error
+				assert.NoError(t, err)
+				assert.True(t, art.Utime > 1)
+				art.Utime = 1
+				assert.Equal(t, art, dao.Article{
+					Id:       2,
+					Title:    "title2",
+					Content:  "content2",
+					AuthorId: 123,
+					Ctime:    1,
+					Utime:    1,
+				})
+				var pubArt dao.PublishArticle
+				err = s.db.WithContext(context.Background()).Find(&pubArt, "id =?", 2).Error
+				assert.NoError(t, err)
+				assert.True(t, pubArt.Utime > 1)
+				pubArt.Utime = 1
+				pubArt.Ctime = 1
+				assert.Equal(t, pubArt, dao.PublishArticle{
+					Article: dao.Article{
+						Id:       2,
+						Title:    "title2",
+						Content:  "content2",
+						AuthorId: 123,
+						Ctime:    1,
+						Utime:    1,
+					},
+				})
+			},
+			art: Article{
+				Id:      2,
+				Title:   "title2",
+				Content: "content2",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Data: 2,
+				Msg:  "OK",
+			},
+		},
+		{
+			name: "更新已有的帖子并重新发表",
+			before: func() {
+				err := s.db.Create(dao.Article{
+					Id:       3,
+					Title:    "title3",
+					Content:  "content3",
+					AuthorId: 123,
+					Ctime:    1,
+					Utime:    1,
+				}).Error
+				assert.NoError(t, err)
+				err = s.db.Create(dao.PublishArticle{
+					dao.Article{
+						Id:       3,
+						Title:    "title3",
+						Content:  "content3",
+						AuthorId: 123,
+						Ctime:    1,
+						Utime:    1,
+					},
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func() {
+				var art dao.Article
+				err := s.db.WithContext(context.Background()).Find(&art, "id = ?", 3).Error
+				assert.NoError(t, err)
+				assert.True(t, art.Utime > 1)
+				art.Utime = 1
+				assert.Equal(t, art, dao.Article{
+					Id:       3,
+					Title:    "title3-modified",
+					Content:  "content3-modified",
+					AuthorId: 123,
+					Ctime:    1,
+					Utime:    1,
+				})
+				var pubArt dao.PublishArticle
+				err = s.db.WithContext(context.Background()).Find(&pubArt, "id =?", 3).Error
+				assert.NoError(t, err)
+				assert.True(t, pubArt.Utime > 1)
+				pubArt.Utime = 1
+				pubArt.Ctime = 1
+				assert.Equal(t, pubArt, dao.PublishArticle{
+					Article: dao.Article{
+						Id:       3,
+						Title:    "title3-modified",
+						Content:  "content3-modified",
+						AuthorId: 123,
+						Ctime:    1,
+						Utime:    1,
+					},
+				})
+			},
+			art: Article{
+				Id:      3,
+				Title:   "title3-modified",
+				Content: "content3-modified",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Data: 3,
+				Msg:  "OK",
+			},
+		},
+		{
+			name: "更新别人的帖子并发表失败",
+			before: func() {
+				err := s.db.Create(dao.Article{
+					Id:       4,
+					Title:    "title3",
+					Content:  "content3",
+					AuthorId: 789,
+					Ctime:    1,
+					Utime:    1,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func() {
+
+			},
+			art: Article{
+				Id:      4,
+				Title:   "title1",
+				Content: "content1",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Code: 5,
+				Msg:  "系统错误",
+			},
+		},
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -224,6 +389,8 @@ func (s *ArticleTestSuite) TestPublish() {
 			tc.after()
 		})
 	}
+	fmt.Println("ok")
+	s.TearDownSuite()
 }
 
 func TestArticle(t *testing.T) {

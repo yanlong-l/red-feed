@@ -17,7 +17,7 @@ type articleService struct {
 }
 
 func (s *articleService) Publish(ctx *gin.Context, article domain.Article) (int64, error) {
-	return 1, nil
+	return s.repo.Sync(ctx, article)
 }
 
 func (s *articleService) Save(ctx context.Context, article domain.Article) (id int64, err error) {
