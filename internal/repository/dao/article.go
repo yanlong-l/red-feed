@@ -2,7 +2,9 @@ package dao
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"time"
@@ -12,7 +14,8 @@ type ArticleDao interface {
 	Insert(ctx context.Context, art Article) (int64, error)
 	Update(ctx context.Context, art Article) error
 	Sync(ctx context.Context, art Article) (int64, error)
-	Upsert(ctx context.Context, art PublishArticle) error
+	Upsert(ctx context.Context, art PublishedArticle) error
+	SyncStatus(ctx *gin.Context, artId int64, authorId int64, status uint8) error
 }
 
 func NewGORMArticleDao(db *gorm.DB) ArticleDao {
@@ -23,7 +26,34 @@ type GORMArticleDao struct {
 	db *gorm.DB
 }
 
-func (d *GORMArticleDao) Upsert(ctx context.Context, art PublishArticle) error {
+func (d *GORMArticleDao) SyncStatus(ctx *gin.Context, artId int64, authorId int64, status uint8) error {
+	// 同步线上库和制作库对应帖子的status
+	now := time.Now().UnixMilli()
+	var art Article
+	var pubArt PublishedArticle
+	return d.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := d.db.WithContext(ctx).Model(&art).
+			Where("id=? AND author_id = ?", artId, authorId).
+			Updates(map[string]any{
+				"utime":  now,
+				"status": status,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errors.New("系统错误")
+		}
+		return d.db.WithContext(ctx).Model(&pubArt).
+			Where("id=? AND author_id = ?", artId, authorId).
+			Updates(map[string]any{
+				"utime":  now,
+				"status": art.Status,
+			}).Error
+	})
+}
+
+func (d *GORMArticleDao) Upsert(ctx context.Context, art PublishedArticle) error {
 	now := time.Now().UnixMilli()
 	art.Ctime = now
 	art.Utime = now
@@ -33,6 +63,7 @@ func (d *GORMArticleDao) Upsert(ctx context.Context, art PublishArticle) error {
 			"title":   art.Title,
 			"content": art.Content,
 			"utime":   art.Utime,
+			"status":  art.Status,
 		}),
 	}).Create(&art).Error
 	return err
@@ -55,7 +86,7 @@ func (d *GORMArticleDao) Sync(ctx context.Context, art Article) (int64, error) {
 			return err
 		}
 		// 继续操作制作库
-		return d.Upsert(ctx, PublishArticle{Article: art})
+		return d.Upsert(ctx, PublishedArticle{Article: art})
 	})
 	return id, err
 }
@@ -70,6 +101,7 @@ func (d *GORMArticleDao) Update(ctx context.Context, art Article) error {
 			"title":   art.Title,
 			"content": art.Content,
 			"utime":   art.Utime,
+			"status":  art.Status,
 		})
 	if res.Error != nil {
 		return res.Error
@@ -95,10 +127,11 @@ type Article struct {
 	Title    string `gorm:"type=varchar(1024)"`
 	Content  string `gorm:"type=BLOB"`
 	AuthorId int64  `gorm:"index"`
+	Status   uint8
 	Ctime    int64
 	Utime    int64
 }
 
-type PublishArticle struct {
+type PublishedArticle struct {
 	Article
 }

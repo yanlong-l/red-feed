@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
+	"red-feed/internal/domain"
 	"red-feed/internal/integration/startup"
 	"red-feed/internal/repository/dao"
 	ijwt "red-feed/internal/web/jwt"
@@ -42,7 +43,7 @@ func (s *ArticleTestSuite) TearDownSuite() {
 	// 清理测试环境
 	// 清空所有数据，并且自增主键恢复到 1
 	s.db.Exec("TRUNCATE TABLE articles")
-	s.db.Exec("TRUNCATE TABLE publish_articles")
+	s.db.Exec("TRUNCATE TABLE published_articles")
 }
 
 func (s *ArticleTestSuite) TestEdit() {
@@ -63,7 +64,23 @@ func (s *ArticleTestSuite) TestEdit() {
 		{
 			name:   "新建帖子-保存成功",
 			before: func() {},
-			after:  func() {},
+			after: func() {
+				// 验证数据库
+				var art dao.Article
+				err := s.db.Where("id=?", 1).First(&art).Error
+				assert.NoError(t, err)
+				assert.True(t, art.Ctime > 0)
+				assert.True(t, art.Utime > 0)
+				art.Ctime = 0
+				art.Utime = 0
+				assert.Equal(t, dao.Article{
+					Id:       1,
+					Title:    "title1",
+					Content:  "content1",
+					AuthorId: 123,
+					Status:   domain.ArticleStatusUnPublished.ToUint8(),
+				}, art)
+			},
 			art: Article{
 				Title:   "title1",
 				Content: "content1",
@@ -80,9 +97,10 @@ func (s *ArticleTestSuite) TestEdit() {
 				// 提前准备数据
 				err := s.db.Create(dao.Article{
 					Id:       2,
-					Title:    "title1",
-					Content:  "content1",
+					Title:    "title2",
+					Content:  "content2",
 					AuthorId: 123,
+					Status:   domain.ArticleStatusUnPublished.ToUint8(),
 					Ctime:    1,
 					Utime:    1,
 				}).Error
@@ -104,6 +122,7 @@ func (s *ArticleTestSuite) TestEdit() {
 					Title:    "title2",
 					Content:  "content2",
 					AuthorId: 123,
+					Status:   domain.ArticleStatusUnPublished.ToUint8(),
 					Ctime:    1,
 					Utime:    0,
 				})
@@ -128,6 +147,7 @@ func (s *ArticleTestSuite) TestEdit() {
 					Title:    "title1",
 					Content:  "content1",
 					AuthorId: 456,
+					Status:   domain.ArticleStatusUnPublished.ToUint8(),
 					Ctime:    1,
 					Utime:    1,
 				}).Error
@@ -144,6 +164,7 @@ func (s *ArticleTestSuite) TestEdit() {
 					Title:    "title1",
 					Content:  "content1",
 					AuthorId: 456,
+					Status:   domain.ArticleStatusUnPublished.ToUint8(),
 					Ctime:    1,
 					Utime:    1,
 				})
@@ -205,7 +226,42 @@ func (s *ArticleTestSuite) TestPublish() {
 		{
 			name:   "新建帖子并发表成功",
 			before: func() {},
-			after:  func() {},
+			after: func() {
+				// 验证一下数据
+				var art dao.Article
+				err := s.db.Where("author_id = ?", 123).First(&art).Error
+				assert.NoError(t, err)
+				// 确保已经生成了主键
+				assert.True(t, art.Id > 0)
+				assert.True(t, art.Ctime > 0)
+				assert.True(t, art.Utime > 0)
+				art.Ctime = 0
+				art.Utime = 0
+				art.Id = 0
+				assert.Equal(t, dao.Article{
+					Title:    "title1",
+					Content:  "content1",
+					AuthorId: 123,
+					Status:   uint8(domain.ArticleStatusPublished),
+				}, art)
+				var publishedArt dao.PublishedArticle
+				err = s.db.Where("author_id = ?", 123).First(&publishedArt).Error
+				assert.NoError(t, err)
+				assert.True(t, publishedArt.Id > 0)
+				assert.True(t, publishedArt.Ctime > 0)
+				assert.True(t, publishedArt.Utime > 0)
+				publishedArt.Ctime = 0
+				publishedArt.Utime = 0
+				publishedArt.Id = 0
+				assert.Equal(t, dao.PublishedArticle{
+					Article: dao.Article{
+						Title:    "title1",
+						Content:  "content1",
+						AuthorId: 123,
+						Status:   uint8(domain.ArticleStatusPublished),
+					},
+				}, publishedArt)
+			},
 			art: Article{
 				Title:   "title1",
 				Content: "content1",
@@ -226,6 +282,7 @@ func (s *ArticleTestSuite) TestPublish() {
 					AuthorId: 123,
 					Ctime:    1,
 					Utime:    1,
+					Status:   domain.ArticleStatusUnPublished.ToUint8(),
 				}).Error
 				assert.NoError(t, err)
 			},
@@ -242,14 +299,15 @@ func (s *ArticleTestSuite) TestPublish() {
 					AuthorId: 123,
 					Ctime:    1,
 					Utime:    1,
+					Status:   domain.ArticleStatusPublished.ToUint8(),
 				})
-				var pubArt dao.PublishArticle
+				var pubArt dao.PublishedArticle
 				err = s.db.WithContext(context.Background()).Find(&pubArt, "id =?", 2).Error
 				assert.NoError(t, err)
 				assert.True(t, pubArt.Utime > 1)
 				pubArt.Utime = 1
 				pubArt.Ctime = 1
-				assert.Equal(t, pubArt, dao.PublishArticle{
+				assert.Equal(t, pubArt, dao.PublishedArticle{
 					Article: dao.Article{
 						Id:       2,
 						Title:    "title2",
@@ -257,6 +315,7 @@ func (s *ArticleTestSuite) TestPublish() {
 						AuthorId: 123,
 						Ctime:    1,
 						Utime:    1,
+						Status:   domain.ArticleStatusPublished.ToUint8(),
 					},
 				})
 			},
@@ -281,9 +340,10 @@ func (s *ArticleTestSuite) TestPublish() {
 					AuthorId: 123,
 					Ctime:    1,
 					Utime:    1,
+					Status:   domain.ArticleStatusPublished.ToUint8(),
 				}).Error
 				assert.NoError(t, err)
-				err = s.db.Create(dao.PublishArticle{
+				err = s.db.Create(dao.PublishedArticle{
 					dao.Article{
 						Id:       3,
 						Title:    "title3",
@@ -291,6 +351,7 @@ func (s *ArticleTestSuite) TestPublish() {
 						AuthorId: 123,
 						Ctime:    1,
 						Utime:    1,
+						Status:   domain.ArticleStatusPublished.ToUint8(),
 					},
 				}).Error
 				assert.NoError(t, err)
@@ -308,14 +369,15 @@ func (s *ArticleTestSuite) TestPublish() {
 					AuthorId: 123,
 					Ctime:    1,
 					Utime:    1,
+					Status:   domain.ArticleStatusPublished.ToUint8(),
 				})
-				var pubArt dao.PublishArticle
+				var pubArt dao.PublishedArticle
 				err = s.db.WithContext(context.Background()).Find(&pubArt, "id =?", 3).Error
 				assert.NoError(t, err)
 				assert.True(t, pubArt.Utime > 1)
 				pubArt.Utime = 1
 				pubArt.Ctime = 1
-				assert.Equal(t, pubArt, dao.PublishArticle{
+				assert.Equal(t, pubArt, dao.PublishedArticle{
 					Article: dao.Article{
 						Id:       3,
 						Title:    "title3-modified",
@@ -323,6 +385,7 @@ func (s *ArticleTestSuite) TestPublish() {
 						AuthorId: 123,
 						Ctime:    1,
 						Utime:    1,
+						Status:   domain.ArticleStatusPublished.ToUint8(),
 					},
 				})
 			},
@@ -342,11 +405,12 @@ func (s *ArticleTestSuite) TestPublish() {
 			before: func() {
 				err := s.db.Create(dao.Article{
 					Id:       4,
-					Title:    "title3",
-					Content:  "content3",
+					Title:    "title4",
+					Content:  "content4",
 					AuthorId: 789,
 					Ctime:    1,
 					Utime:    1,
+					Status:   domain.ArticleStatusPublished.ToUint8(),
 				}).Error
 				assert.NoError(t, err)
 			},
@@ -372,6 +436,154 @@ func (s *ArticleTestSuite) TestPublish() {
 			// 把request body搞出来
 			reqBody, err := json.Marshal(tc.art)
 			req := httptest.NewRequest("POST", "/articles/publish", bytes.NewBuffer(reqBody))
+			// 数据是 JSON 格式
+			req.Header.Set("Content-Type", "application/json")
+			resp := httptest.NewRecorder()
+			s.server.ServeHTTP(resp, req)
+			if resp.Code != http.StatusOK {
+				return
+			}
+			assert.Equal(t, tc.wantCode, resp.Code)
+			var webRes Result[int64]
+			err = json.NewDecoder(resp.Body).Decode(&webRes)
+			require.NoError(t, err)
+			t.Log(webRes)
+			assert.Equal(t, tc.wantRes, webRes)
+			// 清理数据
+			tc.after()
+		})
+	}
+	fmt.Println("ok")
+	s.TearDownSuite()
+}
+
+func (s *ArticleTestSuite) TestWithDraw() {
+	t := s.T()
+	testcases := []struct {
+		name string
+		// 集成测试准备数据
+		before func()
+		// 集成测试验证数据
+		after func()
+		// 集成测试的输入
+		art Article
+		// 预期的HTTP Code
+		wantCode int
+		// 预期的返回
+		wantRes Result[int64]
+	}{
+		{
+			name: "撤回，成功",
+			before: func() {
+				err := s.db.Create(dao.Article{
+					Id:       1,
+					Title:    "title1",
+					Content:  "content1",
+					AuthorId: 123,
+					Ctime:    1,
+					Utime:    1,
+					Status:   domain.ArticleStatusPublished.ToUint8(),
+				}).Error
+				assert.NoError(t, err)
+				err = s.db.Create(dao.PublishedArticle{
+					Article: dao.Article{
+						Id:       1,
+						Title:    "title1",
+						Content:  "content1",
+						AuthorId: 123,
+						Ctime:    1,
+						Utime:    1,
+						Status:   domain.ArticleStatusPublished.ToUint8(),
+					},
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func() {
+				// 验证一下数据
+				var art dao.Article
+				err := s.db.Where("id = ? AND author_id = ?", 1, 123).First(&art).Error
+				assert.NoError(t, err)
+				assert.True(t, art.Utime > 1)
+				art.Ctime = 0
+				art.Utime = 0
+				art.Id = 0
+				assert.Equal(t, dao.Article{
+					Title:    "title1",
+					Content:  "content1",
+					AuthorId: 123,
+					Status:   uint8(domain.ArticleStatusPrivate),
+				}, art)
+				var publishedArt dao.PublishedArticle
+				err = s.db.Where("id = ? AND author_id = ?", 1, 123).First(&publishedArt).Error
+				assert.NoError(t, err)
+				assert.True(t, publishedArt.Id > 0)
+				assert.True(t, publishedArt.Utime > 1)
+				publishedArt.Ctime = 0
+				publishedArt.Utime = 0
+				publishedArt.Id = 0
+				assert.Equal(t, dao.PublishedArticle{
+					Article: dao.Article{
+						Title:    "title1",
+						Content:  "content1",
+						AuthorId: 123,
+						Status:   uint8(domain.ArticleStatusPrivate),
+					},
+				}, publishedArt)
+			},
+			art: Article{
+				Id: 1,
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Msg: "OK",
+			},
+		},
+		{
+			name: "撤回别人的帖子，失败",
+			before: func() {
+				err := s.db.Create(dao.Article{
+					Id:       2,
+					Title:    "title2",
+					Content:  "content2",
+					AuthorId: 789,
+					Ctime:    1,
+					Utime:    1,
+					Status:   domain.ArticleStatusPublished.ToUint8(),
+				}).Error
+				assert.NoError(t, err)
+				err = s.db.Create(dao.PublishedArticle{
+					Article: dao.Article{
+						Id:       2,
+						Title:    "title2",
+						Content:  "content2",
+						AuthorId: 789,
+						Ctime:    1,
+						Utime:    1,
+						Status:   domain.ArticleStatusPublished.ToUint8(),
+					},
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func() {
+
+			},
+			art: Article{
+				Id: 2,
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Code: 5,
+				Msg:  "系统错误",
+			},
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// 先准备数据
+			tc.before()
+			// 把request body搞出来
+			reqBody, err := json.Marshal(tc.art)
+			req := httptest.NewRequest("POST", "/articles/withdraw", bytes.NewBuffer(reqBody))
 			// 数据是 JSON 格式
 			req.Header.Set("Content-Type", "application/json")
 			resp := httptest.NewRecorder()

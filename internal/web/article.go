@@ -27,6 +27,7 @@ func (a *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	ag := server.Group("/articles")
 	ag.POST("/edit", a.Edit)
 	ag.POST("/publish", a.Publish)
+	ag.POST("/withdraw", a.WithDraw)
 }
 
 func (a *ArticleHandler) Edit(ctx *gin.Context) {
@@ -57,6 +58,7 @@ func (a *ArticleHandler) Edit(ctx *gin.Context) {
 		Author: domain.Author{
 			Id: claimsVal.Uid,
 		},
+		Status: domain.ArticleStatusUnPublished,
 	})
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
@@ -112,5 +114,43 @@ func (a *ArticleHandler) Publish(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, Result{
 		Msg:  "OK",
 		Data: id,
+	})
+}
+
+func (a *ArticleHandler) WithDraw(ctx *gin.Context) {
+	var req struct {
+		Id int64 `json:"id"`
+	}
+	if err := ctx.ShouldBind(&req); err != nil {
+		return
+	}
+	// 获取用户id
+	claims := ctx.MustGet("claims")
+	claimsVal, ok := claims.(*ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		a.l.Error("未发现用户的 session 信息")
+		return
+	}
+	// 调用article service
+	err := a.svc.WithDraw(ctx, domain.Article{
+		Id: req.Id,
+		Author: domain.Author{
+			Id: claimsVal.Uid,
+		},
+	})
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		a.l.Error("撤回帖子失败", logger.Error(err))
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "OK",
 	})
 }

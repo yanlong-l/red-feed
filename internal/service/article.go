@@ -10,10 +10,15 @@ import (
 type ArticleService interface {
 	Save(ctx context.Context, article domain.Article) (id int64, err error)
 	Publish(ctx *gin.Context, article domain.Article) (int64, error)
+	WithDraw(ctx *gin.Context, article domain.Article) error
 }
 
 type articleService struct {
 	repo repository.ArticleRepository
+}
+
+func (s *articleService) WithDraw(ctx *gin.Context, article domain.Article) error {
+	return s.repo.SyncStatus(ctx, article.Id, article.Author.Id, domain.ArticleStatusPrivate)
 }
 
 func (s *articleService) Publish(ctx *gin.Context, article domain.Article) (int64, error) {
