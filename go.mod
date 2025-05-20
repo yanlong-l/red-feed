@@ -11,7 +11,7 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.23
 	github.com/cloopen/go-sms-sdk v0.0.0-20200702015230-7c5619f80c9e
 	github.com/dlclark/regexp2 v1.11.4
-	github.com/ecodeclub/ekit v0.0.9
+	github.com/ecodeclub/ekit v0.0.10
 	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-contrib/sessions v1.0.1
 	github.com/gin-gonic/gin v1.10.0

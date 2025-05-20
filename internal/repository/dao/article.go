@@ -16,6 +16,10 @@ type ArticleDao interface {
 	Sync(ctx context.Context, art Article) (int64, error)
 	Upsert(ctx context.Context, art PublishedArticle) error
 	SyncStatus(ctx *gin.Context, artId int64, authorId int64, status uint8) error
+	GetListByAuthor(ctx *gin.Context, authorId int64, offset int, limit int) ([]Article, error)
+	GetPubList(ctx *gin.Context, offset int, limit int) ([]PublishedArticle, error)
+	GetById(ctx *gin.Context, artId int64) (Article, error)
+	GetPubById(ctx *gin.Context, artId int64) (PublishedArticle, error)
 }
 
 func NewGORMArticleDao(db *gorm.DB) ArticleDao {
@@ -24,6 +28,43 @@ func NewGORMArticleDao(db *gorm.DB) ArticleDao {
 
 type GORMArticleDao struct {
 	db *gorm.DB
+}
+
+func (d *GORMArticleDao) GetPubList(ctx *gin.Context, offset int, limit int) ([]PublishedArticle, error) {
+	var arts = make([]PublishedArticle, 0)
+	err := d.db.WithContext(ctx).Model(&PublishedArticle{}).
+		Offset(offset).
+		Limit(limit).
+		Order("utime DESC").
+		Find(&arts).Error
+	return arts, err
+}
+
+func (d *GORMArticleDao) GetById(ctx *gin.Context, artId int64) (Article, error) {
+	var art Article
+	err := d.db.WithContext(ctx).Model(&Article{}).
+		Where("id = ?", artId).
+		First(&art).Error
+	return art, err
+}
+
+func (d *GORMArticleDao) GetPubById(ctx *gin.Context, artId int64) (PublishedArticle, error) {
+	var art PublishedArticle
+	err := d.db.WithContext(ctx).Model(&Article{}).
+		Where("id = ?", artId).
+		First(&art).Error
+	return art, err
+}
+
+func (d *GORMArticleDao) GetListByAuthor(ctx *gin.Context, authorId int64, offset int, limit int) ([]Article, error) {
+	var arts = make([]Article, 0)
+	err := d.db.WithContext(ctx).Model(&Article{}).
+		Where("author_id = ?", authorId).
+		Offset(offset).
+		Limit(limit).
+		Order("utime DESC").
+		Find(&arts).Error
+	return arts, err
 }
 
 func (d *GORMArticleDao) SyncStatus(ctx *gin.Context, artId int64, authorId int64, status uint8) error {

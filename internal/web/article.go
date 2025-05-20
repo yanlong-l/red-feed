@@ -1,12 +1,14 @@
 package web
 
 import (
+	"github.com/ecodeclub/ekit/slice"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"red-feed/internal/domain"
 	"red-feed/internal/service"
 	ijwt "red-feed/internal/web/jwt"
 	"red-feed/pkg/logger"
+	"time"
 )
 
 var _ Handler = (*ArticleHandler)(nil)
@@ -25,9 +27,10 @@ func NewArticleHandler(svc service.ArticleService, l logger.Logger) *ArticleHand
 
 func (a *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	ag := server.Group("/articles")
-	ag.POST("/edit", a.Edit)
-	ag.POST("/publish", a.Publish)
-	ag.POST("/withdraw", a.WithDraw)
+	ag.POST("/edit", a.Edit)         // 创作者保存文章
+	ag.POST("/publish", a.Publish)   // 创作者发表文章
+	ag.POST("/withdraw", a.WithDraw) // 创作撤销发表的文章
+	ag.POST("/list", a.List)         // 创作者查看自己的文章列表
 }
 
 func (a *ArticleHandler) Edit(ctx *gin.Context) {
@@ -152,5 +155,51 @@ func (a *ArticleHandler) WithDraw(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "OK",
+	})
+}
+
+func (a *ArticleHandler) List(ctx *gin.Context) {
+	var req struct {
+		Offset int `json:"offset"`
+		Limit  int `json:"limit"`
+	}
+	if err := ctx.ShouldBind(&req); err != nil {
+		return
+	}
+	// 获取用户id
+	claims := ctx.MustGet("claims")
+	claimsVal, ok := claims.(*ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		a.l.Error("未发现用户的 session 信息")
+		return
+	}
+	res, err := a.svc.List(ctx, claimsVal.Uid, req.Offset, req.Limit)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Data: slice.Map[domain.Article, ArticleVO](res,
+			func(idx int, src domain.Article) ArticleVO {
+				return ArticleVO{
+					Id:       src.Id,
+					Title:    src.Title,
+					Abstract: src.Abstract(),
+					Status:   src.Status.ToUint8(),
+					// 这个列表请求，不需要返回内容
+					//Content: src.Content,
+					// 这个是创作者看自己的文章列表，也不需要这个字段
+					//Author: src.Author
+					Ctime: src.Ctime.Format(time.DateTime),
+					Utime: src.Utime.Format(time.DateTime),
+				}
+			}),
 	})
 }
