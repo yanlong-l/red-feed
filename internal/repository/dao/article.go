@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"red-feed/internal/domain"
 	"time"
 )
 
@@ -14,12 +14,11 @@ type ArticleDao interface {
 	Insert(ctx context.Context, art Article) (int64, error)
 	Update(ctx context.Context, art Article) error
 	Sync(ctx context.Context, art Article) (int64, error)
-	Upsert(ctx context.Context, art PublishedArticle) error
-	SyncStatus(ctx *gin.Context, artId int64, authorId int64, status uint8) error
-	GetListByAuthor(ctx *gin.Context, authorId int64, offset int, limit int) ([]Article, error)
-	GetPubList(ctx *gin.Context, offset int, limit int) ([]PublishedArticle, error)
-	GetById(ctx *gin.Context, artId int64) (Article, error)
-	GetPubById(ctx *gin.Context, artId int64) (PublishedArticle, error)
+	SyncStatus(ctx context.Context, artId int64, authorId int64, status uint8) error
+	List(ctx context.Context, authorId int64, offset int, limit int) ([]Article, error)
+	ListPub(ctx context.Context, offset int, limit int) ([]PublishedArticle, error)
+	GetById(ctx context.Context, artId int64) (Article, error)
+	GetPubById(ctx context.Context, artId int64) (PublishedArticle, error)
 }
 
 func NewGORMArticleDao(db *gorm.DB) ArticleDao {
@@ -30,9 +29,10 @@ type GORMArticleDao struct {
 	db *gorm.DB
 }
 
-func (d *GORMArticleDao) GetPubList(ctx *gin.Context, offset int, limit int) ([]PublishedArticle, error) {
+func (d *GORMArticleDao) ListPub(ctx context.Context, offset int, limit int) ([]PublishedArticle, error) {
 	var arts = make([]PublishedArticle, 0)
 	err := d.db.WithContext(ctx).Model(&PublishedArticle{}).
+		Where("status = ?", domain.ArticleStatusPublished.ToUint8()).
 		Offset(offset).
 		Limit(limit).
 		Order("utime DESC").
@@ -40,7 +40,7 @@ func (d *GORMArticleDao) GetPubList(ctx *gin.Context, offset int, limit int) ([]
 	return arts, err
 }
 
-func (d *GORMArticleDao) GetById(ctx *gin.Context, artId int64) (Article, error) {
+func (d *GORMArticleDao) GetById(ctx context.Context, artId int64) (Article, error) {
 	var art Article
 	err := d.db.WithContext(ctx).Model(&Article{}).
 		Where("id = ?", artId).
@@ -48,7 +48,7 @@ func (d *GORMArticleDao) GetById(ctx *gin.Context, artId int64) (Article, error)
 	return art, err
 }
 
-func (d *GORMArticleDao) GetPubById(ctx *gin.Context, artId int64) (PublishedArticle, error) {
+func (d *GORMArticleDao) GetPubById(ctx context.Context, artId int64) (PublishedArticle, error) {
 	var art PublishedArticle
 	err := d.db.WithContext(ctx).Model(&Article{}).
 		Where("id = ?", artId).
@@ -56,7 +56,7 @@ func (d *GORMArticleDao) GetPubById(ctx *gin.Context, artId int64) (PublishedArt
 	return art, err
 }
 
-func (d *GORMArticleDao) GetListByAuthor(ctx *gin.Context, authorId int64, offset int, limit int) ([]Article, error) {
+func (d *GORMArticleDao) List(ctx context.Context, authorId int64, offset int, limit int) ([]Article, error) {
 	var arts = make([]Article, 0)
 	err := d.db.WithContext(ctx).Model(&Article{}).
 		Where("author_id = ?", authorId).
@@ -67,7 +67,7 @@ func (d *GORMArticleDao) GetListByAuthor(ctx *gin.Context, authorId int64, offse
 	return arts, err
 }
 
-func (d *GORMArticleDao) SyncStatus(ctx *gin.Context, artId int64, authorId int64, status uint8) error {
+func (d *GORMArticleDao) SyncStatus(ctx context.Context, artId int64, authorId int64, status uint8) error {
 	// 同步线上库和制作库对应帖子的status
 	now := time.Now().UnixMilli()
 	var art Article

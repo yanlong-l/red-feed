@@ -9,6 +9,7 @@ type User struct {
 	Email      string
 	Password   string
 	Phone      string
+	Nickname   string
 	WechatInfo WechatInfo // 没有组合，因为其他oauth2第三方，例如钉钉可能也有OpenID，会导致重名
 	Ctime      time.Time
 }
