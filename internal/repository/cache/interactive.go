@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"red-feed/internal/domain"
+	"strconv"
+	"time"
 )
 
 var (
 	//go:embed lua/interative_incr_cnt.lua
 	luaIncrCnt string
 )
+
+var ErrKeyNotExist = redis.Nil
 
 const (
 	fieldReadCnt    = "read_cnt"
@@ -77,13 +81,40 @@ func (c *RedisInteractiveCache) DecrCollectCntIfPresent(ctx context.Context, biz
 }
 
 func (c *RedisInteractiveCache) Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error) {
-	//TODO implement me
-	panic("implement me")
+	// 直接使用 HMGet，即便缓存中没有对应的 key，也不会返回 error
+	data, err := c.client.HGetAll(ctx, c.key(biz, bizId)).Result()
+	if err != nil {
+		return domain.Interactive{}, err
+	}
+
+	if len(data) == 0 {
+		// 缓存不存在
+		return domain.Interactive{}, ErrKeyNotExist
+	}
+
+	// 理论上来说，这里不可能有 error
+	collectCnt, _ := strconv.ParseInt(data[fieldCollectCnt], 10, 64)
+	likeCnt, _ := strconv.ParseInt(data[fieldLikeCnt], 10, 64)
+	readCnt, _ := strconv.ParseInt(data[fieldReadCnt], 10, 64)
+
+	return domain.Interactive{
+		BizId:      bizId,
+		CollectCnt: collectCnt,
+		LikeCnt:    likeCnt,
+		ReadCnt:    readCnt,
+	}, err
 }
 
 func (c *RedisInteractiveCache) Set(ctx context.Context, biz string, bizId int64, intr domain.Interactive) error {
-	//TODO implement me
-	panic("implement me")
+	key := c.key(biz, bizId)
+	err := c.client.HMSet(ctx, key,
+		fieldLikeCnt, intr.LikeCnt,
+		fieldCollectCnt, intr.CollectCnt,
+		fieldReadCnt, intr.ReadCnt).Err()
+	if err != nil {
+		return err
+	}
+	return c.client.Expire(ctx, key, time.Minute*15).Err()
 }
 
 func (c *RedisInteractiveCache) key(biz string, bizId int64) string {
