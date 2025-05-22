@@ -2,21 +2,24 @@ package service
 
 import (
 	"context"
+	"golang.org/x/sync/errgroup"
 	"red-feed/internal/domain"
 	"red-feed/internal/repository"
+	"red-feed/pkg/logger"
 )
 
 type InteractiveService interface {
-	IncrReadCnt(ctx context.Context, biz string, bizId int64) error               // 增加阅读计数
-	Like(ctx context.Context, biz string, bizId, uId int64) error                 // 点赞
-	CancelLike(ctx context.Context, biz string, bizId, uId int64) error           // 取消点赞
-	Collect(ctx context.Context, biz string, bizId, uId, cId int64) error         // 收藏
-	CancelCollect(ctx context.Context, biz string, bizId, uId, cId int64) error   // 取消收藏
-	Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error) // 获取收藏点赞信息
+	IncrReadCnt(ctx context.Context, biz string, bizId int64) error                          // 增加阅读计数
+	Like(ctx context.Context, biz string, bizId, uId int64) error                            // 点赞
+	CancelLike(ctx context.Context, biz string, bizId, uId int64) error                      // 取消点赞
+	Collect(ctx context.Context, biz string, bizId, uId, cId int64) error                    // 收藏
+	CancelCollect(ctx context.Context, biz string, bizId, uId, cId int64) error              // 取消收藏
+	Get(ctx context.Context, biz string, bizId int64, uId int64) (domain.Interactive, error) // 获取收藏点赞信息
 }
 
 type interactiveService struct {
 	repo repository.InteractiveRepository
+	l    logger.Logger
 }
 
 func (s *interactiveService) Like(ctx context.Context, biz string, bizId, uId int64) error {
@@ -35,16 +38,41 @@ func (s *interactiveService) CancelCollect(ctx context.Context, biz string, bizI
 	return s.repo.DecrCollect(ctx, biz, bizId, uId, cId)
 }
 
-func (s *interactiveService) Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error) {
-	return s.repo.Get(ctx, biz, bizId)
+func (s *interactiveService) Get(ctx context.Context, biz string, bizId int64, uId int64) (domain.Interactive, error) {
+	intr, err := s.repo.Get(ctx, biz, bizId)
+	if err != nil {
+		return domain.Interactive{}, err
+	}
+	var eg errgroup.Group
+	eg.Go(func() error {
+		intr.Liked, err = s.repo.Liked(ctx, biz, bizId, uId)
+		return err
+	})
+	eg.Go(func() error {
+		intr.Collected, err = s.repo.Collected(ctx, biz, bizId, uId)
+		return err
+	})
+	// 说明是登录过的，补充用户是否点赞或者
+	// 新的打印日志的形态 zap 本身就有这种用法
+	err = eg.Wait()
+	if err != nil {
+		// 这个查询失败只需要记录日志就可以，不需要中断执行
+		s.l.Error("查询用户是否点赞和收藏的信息失败",
+			logger.String("biz", biz),
+			logger.Int64("bizId", bizId),
+			logger.Int64("uid", uId),
+			logger.Error(err))
+	}
+	return intr, err
 }
 
 func (s *interactiveService) IncrReadCnt(ctx context.Context, biz string, bizId int64) error {
 	return s.repo.IncrReadCnt(ctx, biz, bizId)
 }
 
-func NewInteractiveService(repo repository.InteractiveRepository) InteractiveService {
+func NewInteractiveService(repo repository.InteractiveRepository, l logger.Logger) InteractiveService {
 	return &interactiveService{
 		repo: repo,
+		l:    l,
 	}
 }

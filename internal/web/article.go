@@ -3,6 +3,7 @@ package web
 import (
 	"github.com/ecodeclub/ekit/slice"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 	"net/http"
 	"red-feed/internal/domain"
 	"red-feed/internal/service"
@@ -15,14 +16,18 @@ import (
 var _ Handler = (*ArticleHandler)(nil)
 
 type ArticleHandler struct {
-	svc service.ArticleService
-	l   logger.Logger
+	svc     service.ArticleService
+	intrSvc service.InteractiveService
+	l       logger.Logger
+	biz     string
 }
 
-func NewArticleHandler(svc service.ArticleService, l logger.Logger) *ArticleHandler {
+func NewArticleHandler(svc service.ArticleService, l logger.Logger, intrSvc service.InteractiveService) *ArticleHandler {
 	return &ArticleHandler{
-		svc: svc,
-		l:   l,
+		svc:     svc,
+		l:       l,
+		intrSvc: intrSvc,
+		biz:     "article",
 	}
 }
 
@@ -38,6 +43,9 @@ func (a *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	//pub.GET("/pub", a.ListPub)
 	pub.GET("/:id", a.PubDetail) // 读者查看文章详情
 	pub.POST("/list", a.PubList) // 读者查看文章列表
+
+	pub.POST("/like", a.Like)       // 读者点赞 or 取消点赞
+	pub.POST("/collect", a.Collect) // 读者收藏 or 取消收藏
 }
 
 func (a *ArticleHandler) Edit(ctx *gin.Context) {
@@ -276,8 +284,44 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 		})
 		return
 	}
+	uc, ok := ctx.MustGet("claims").(ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		a.l.Error("获得用户会话信息失败")
+		return
+	}
 
-	art, err := a.svc.GetPublishedById(ctx, id)
+	// 使用 error group 来同时查询数据
+	var (
+		eg   errgroup.Group
+		art  domain.Article
+		intr domain.Interactive
+	)
+	eg.Go(func() error {
+		var er error
+		art, er = a.svc.GetPublishedById(ctx, id)
+		return er
+	})
+
+	eg.Go(func() error {
+		var er error
+		intr, er = a.intrSvc.Get(ctx, a.biz, id, uc.Uid)
+		return er
+	})
+
+	err = eg.Wait()
+	if err != nil {
+		a.l.Error("获得文章详情信息失败", logger.Error(err))
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+	}
+
+	art, err = a.svc.GetPublishedById(ctx, id)
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
@@ -285,16 +329,27 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 		})
 		return
 	}
+	// 异步增加阅读计数
+	go func() {
+		err = a.intrSvc.IncrReadCnt(ctx, a.biz, art.Id)
+		if err != nil {
+			a.l.Error("增加文章阅读数失败", logger.Error(err))
+		}
+	}()
 	ctx.JSON(http.StatusOK, Result{
 		Data: ArticleVO{
-			Id:      art.Id,
-			Title:   art.Title,
-			Status:  art.Status.ToUint8(),
-			Content: art.Content,
-			// 要把作者信息带出去
-			Author: art.Author.Name,
-			Ctime:  art.Ctime.Format(time.DateTime),
-			Utime:  art.Utime.Format(time.DateTime),
+			Id:         art.Id,
+			Title:      art.Title,
+			Status:     art.Status.ToUint8(),
+			Content:    art.Content,
+			Author:     art.Author.Name, // 详情页 要把作者信息带出去
+			CollectCnt: intr.CollectCnt,
+			ReadCnt:    intr.ReadCnt,
+			LikeCnt:    intr.LikeCnt,
+			Collected:  intr.Collected,
+			Liked:      intr.Liked,
+			Ctime:      art.Ctime.Format(time.DateTime),
+			Utime:      art.Utime.Format(time.DateTime),
 		},
 	})
 }
@@ -331,5 +386,71 @@ func (a *ArticleHandler) PubList(ctx *gin.Context) {
 					Utime:  src.Utime.Format(time.DateTime),
 				}
 			}),
+	})
+}
+
+func (a *ArticleHandler) Like(ctx *gin.Context) {
+	var req struct {
+		Id   int64 `json:"id"`
+		Like bool  `json:"like"`
+	}
+	if err := ctx.ShouldBind(&req); err != nil {
+		return
+	}
+	uc, ok := ctx.MustGet("claims").(ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		a.l.Error("获得用户会话信息失败")
+		return
+	}
+	var err error
+	if req.Like {
+		err = a.intrSvc.Like(ctx, a.biz, req.Id, uc.Uid)
+	} else {
+		err = a.intrSvc.CancelLike(ctx, a.biz, req.Id, uc.Uid)
+	}
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "OK",
+	})
+}
+
+func (a *ArticleHandler) Collect(ctx *gin.Context) {
+	var req struct {
+		Id      int64 `json:"id"`
+		Cid     int64 `json:"cid"`
+		Collect bool  `json:"collect"`
+	}
+	uc, ok := ctx.MustGet("claims").(ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		a.l.Error("获得用户会话信息失败")
+		return
+	}
+	var err error
+	if req.Collect {
+		err = a.intrSvc.Collect(ctx, a.biz, req.Id, uc.Uid, req.Cid)
+	} else {
+		err = a.intrSvc.CancelCollect(ctx, a.biz, req.Id, uc.Uid, req.Cid)
+	}
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "OK",
 	})
 }

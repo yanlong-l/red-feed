@@ -15,6 +15,8 @@ type InteractiveRepository interface {
 	IncrCollect(ctx context.Context, biz string, bizId, uId, cId int64) error
 	DecrCollect(ctx context.Context, biz string, bizId, uId, cId int64) error
 	Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error)
+	Liked(ctx context.Context, biz string, bizId int64, uId int64) (bool, error)
+	Collected(ctx context.Context, biz string, bizId int64, uId int64) (bool, error)
 }
 
 type CachedInteractiveRepository struct {
@@ -23,15 +25,49 @@ type CachedInteractiveRepository struct {
 	l     logger.Logger
 }
 
+func (r *CachedInteractiveRepository) Liked(ctx context.Context, biz string, bizId, uId int64) (bool, error) {
+	_, err := r.dao.GetLikeInfo(ctx, biz, bizId, uId)
+	switch err {
+	case nil:
+		return true, nil
+	case dao.ErrDataNotFound:
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
+func (r *CachedInteractiveRepository) Collected(ctx context.Context, biz string, bizId, uId int64) (bool, error) {
+	_, err := r.dao.GetCollectionInfo(ctx, biz, bizId, uId)
+	switch err {
+	case nil:
+		return true, nil
+	case dao.ErrDataNotFound:
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
 func (r *CachedInteractiveRepository) Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error) {
 	// 先读缓存
 	intr, err := r.cache.Get(ctx, biz, bizId)
 	if err == nil {
 		return intr, nil
 	}
-	return domain.Interactive{}, err
 	// 缓存没查到，再查数据库
-	//intr, err = r.dao.Get(ctx, biz, bizId)
+	intrDAO, err := r.dao.Get(ctx, biz, bizId)
+	if err != nil {
+		return domain.Interactive{}, err
+	}
+	intr = r.toDomain(intrDAO)
+	go func() {
+		setErr := r.cache.Set(ctx, biz, bizId, intr)
+		if setErr != nil {
+			r.l.Error("回写interactive cache失败", logger.String("biz", biz), logger.Error(setErr))
+		}
+	}()
+	return intr, err
 }
 
 func (r *CachedInteractiveRepository) IncrLike(ctx context.Context, biz string, bizId, uId int64) error {
@@ -104,6 +140,15 @@ func (r *CachedInteractiveRepository) IncrReadCnt(ctx context.Context, biz strin
 		return err
 	}
 	return r.cache.IncrReadCntIfPresent(ctx, biz, bizId)
+}
+
+func (r *CachedInteractiveRepository) toDomain(intrDAO dao.Interactive) domain.Interactive {
+	return domain.Interactive{
+		BizId:      intrDAO.BizId,
+		CollectCnt: intrDAO.CollectCnt,
+		LikeCnt:    intrDAO.LikeCnt,
+		ReadCnt:    intrDAO.ReadCnt,
+	}
 }
 
 func NewInteractiveRepository(dao dao.InteractiveDAO, cache cache.InteractiveCache, l logger.Logger) InteractiveRepository {
