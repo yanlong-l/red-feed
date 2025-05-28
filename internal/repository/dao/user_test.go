@@ -93,7 +93,7 @@ func TestGORMUserDAO_Insert(t *testing.T) {
 			require.NoError(t, err)
 
 			// 实例化UserDAO
-			d := NewUserDAO(db)
+			d := NewGORMUserDAO(db)
 			err = d.Insert(tc.ctx, tc.user)
 			assert.Equal(t, tc.wantErr, err)
 		})

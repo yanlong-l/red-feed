@@ -17,7 +17,7 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockGORMUserDAO is a mock of GORMUserDAO interface.
+// MockGORMUserDAO is a mock of UserDAO interface.
 type MockGORMUserDAO struct {
 	ctrl     *gomock.Controller
 	recorder *MockGORMUserDAOMockRecorder

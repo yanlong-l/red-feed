@@ -17,12 +17,17 @@ type InteractiveRepository interface {
 	Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error)
 	Liked(ctx context.Context, biz string, bizId int64, uId int64) (bool, error)
 	Collected(ctx context.Context, biz string, bizId int64, uId int64) (bool, error)
+	BatchIncrReadCnt(ctx context.Context, bizs []string, bizIds []int64) error
 }
 
 type CachedInteractiveRepository struct {
 	dao   dao.InteractiveDAO
 	cache cache.InteractiveCache
 	l     logger.Logger
+}
+
+func (r *CachedInteractiveRepository) BatchIncrReadCnt(ctx context.Context, bizs []string, bizIds []int64) error {
+	return r.dao.BatchIncrReadCnt(ctx, bizs, bizIds)
 }
 
 func (r *CachedInteractiveRepository) Liked(ctx context.Context, biz string, bizId, uId int64) (bool, error) {
