@@ -39,8 +39,6 @@ func (r *InteractiveReadEventBatchConsumer) Start() error {
 
 // Consume 这个不是幂等的
 func (r *InteractiveReadEventBatchConsumer) Consume(msg []*sarama.ConsumerMessage, ts []ReadEvent) error {
-	r.l.Info("收到了阅读事件",
-		logger.Field{Key: "msgs", Value: msg})
 	ids := make([]int64, 0, len(ts))
 	bizs := make([]string, 0, len(ts))
 	for _, evt := range ts {

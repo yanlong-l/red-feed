@@ -79,7 +79,8 @@ func (u *UserHandler) RefreshToken(ctx *gin.Context) {
 		return
 	}
 	// 校验ssid
-	err = u.CheckSession(ctx, uc.Ssid); if err != nil {
+	err = u.CheckSession(ctx, uc.Ssid)
+	if err != nil {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
@@ -96,6 +97,7 @@ func (u *UserHandler) RefreshToken(ctx *gin.Context) {
 }
 
 func (u *UserHandler) SignUp(ctx *gin.Context) {
+	ctx.Request.Context()
 	type SignUpReq struct {
 		Email           string `json:"email"`
 		Password        string `json:"password"`
@@ -130,7 +132,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	}
 
 	// 调用svc层
-	err = u.svc.SignUp(ctx, domain.User{
+	err = u.svc.SignUp(ctx.Request.Context(), domain.User{
 		Email:    req.Email,
 		Password: req.Password,
 	})

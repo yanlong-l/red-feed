@@ -3,7 +3,6 @@ package saramax
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/IBM/sarama"
 	"red-feed/pkg/logger"
 	"time"
@@ -73,8 +72,6 @@ func (h *BatchHandler[T]) ConsumeClaim(session sarama.ConsumerGroupSession,
 				ts = append(ts, t)
 			}
 		}
-		fmt.Println("消息数量", len(msgs))
-		fmt.Println(msgs)
 		err := h.fn(msgs, ts)
 		if err == nil {
 			// 这边就要都提交了
