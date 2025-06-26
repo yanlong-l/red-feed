@@ -46,7 +46,7 @@ func (d *GORMInteractiveDAO) GetLikeInfo(ctx context.Context, biz string, bizId,
 
 func (d *GORMInteractiveDAO) GetCollectionInfo(ctx context.Context, biz string, bizId, uid int64) (UserCollectionBiz, error) {
 	var res UserCollectionBiz
-	err := d.db.WithContext(ctx).First(&res, "biz = ? biz_id = ? AND uid = ?", biz, bizId, uid).Error
+	err := d.db.WithContext(ctx).First(&res, "biz = ? AND biz_id = ? AND uid = ?", biz, bizId, uid).Error
 	return res, err
 }
 

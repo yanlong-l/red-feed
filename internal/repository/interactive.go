@@ -109,15 +109,15 @@ func (r *CachedInteractiveRepository) DecrLike(ctx context.Context, biz string, 
 
 func (r *CachedInteractiveRepository) IncrCollect(ctx context.Context, biz string, bizId, uId, cId int64) error {
 	// 操作数据库增加收藏计数和用户收藏关系
-	err := r.dao.DeleteCollectInfo(ctx, biz, bizId, uId, cId)
+	err := r.dao.InsertCollectInfo(ctx, biz, bizId, uId, cId)
 	if err != nil {
 		return err
 	}
 	go func() {
 		// 在缓存中维护住 biz_bizId 的点赞数
-		cErr := r.cache.DecrCollectCntIfPresent(ctx, biz, bizId)
+		cErr := r.cache.IncrCollectCntIfPresent(ctx, biz, bizId)
 		if cErr != nil {
-			r.l.Error("DecrCollectCntIfPresent error", logger.Error(cErr))
+			r.l.Error("IncrCollectCntIfPresent error", logger.Error(cErr))
 		}
 	}()
 	return nil
@@ -131,9 +131,9 @@ func (r *CachedInteractiveRepository) DecrCollect(ctx context.Context, biz strin
 	}
 	go func() {
 		// 在缓存中维护住 biz_bizId 的点赞数
-		cErr := r.cache.IncrCollectCntIfPresent(ctx, biz, bizId)
+		cErr := r.cache.DecrCollectCntIfPresent(ctx, biz, bizId)
 		if cErr != nil {
-			r.l.Error("IncrCollectCntIfPresent error", logger.Error(cErr))
+			r.l.Error("DecrCollectCntIfPresent error", logger.Error(cErr))
 		}
 	}()
 	return nil

@@ -29,7 +29,8 @@ func (h *RedisJWTHandler) SetJWTToken(ctx *gin.Context, uid int64, ssid string) 
 	// 登录成功，生成JWT Token
 	claims := UserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
+			//ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 20000000)),
 		},
 		Uid:       uid,
 		Ssid:      ssid,

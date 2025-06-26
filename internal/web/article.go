@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"github.com/ecodeclub/ekit/slice"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/sync/errgroup"
@@ -230,7 +231,9 @@ func (a *ArticleHandler) Detail(ctx *gin.Context) {
 		a.l.Error("前端输入的 ID 不对", logger.Error(err))
 		return
 	}
-	usr, ok := ctx.MustGet("claims").(ijwt.UserClaims)
+
+	usr, ok := ctx.MustGet("claims").(*ijwt.UserClaims)
+	fmt.Println(usr)
 	if !ok {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
@@ -284,7 +287,7 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 		})
 		return
 	}
-	uc, ok := ctx.MustGet("claims").(ijwt.UserClaims)
+	uc, ok := ctx.MustGet("claims").(*ijwt.UserClaims)
 	if !ok {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
@@ -319,23 +322,9 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 			Code: 5,
 			Msg:  "系统错误",
 		})
-	}
-
-	art, err = a.svc.GetPublishedById(ctx, id, uc.Uid)
-	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
-			Msg:  "系统错误",
-		})
 		return
 	}
-	// 异步增加阅读计数
-	go func() {
-		err = a.intrSvc.IncrReadCnt(ctx, a.biz, art.Id)
-		if err != nil {
-			a.l.Error("增加文章阅读数失败", logger.Error(err))
-		}
-	}()
+
 	ctx.JSON(http.StatusOK, Result{
 		Data: ArticleVO{
 			Id:         art.Id,
@@ -397,7 +386,7 @@ func (a *ArticleHandler) Like(ctx *gin.Context) {
 	if err := ctx.ShouldBind(&req); err != nil {
 		return
 	}
-	uc, ok := ctx.MustGet("claims").(ijwt.UserClaims)
+	uc, ok := ctx.MustGet("claims").(*ijwt.UserClaims)
 	if !ok {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
@@ -429,7 +418,10 @@ func (a *ArticleHandler) Collect(ctx *gin.Context) {
 		Cid     int64 `json:"cid"`
 		Collect bool  `json:"collect"`
 	}
-	uc, ok := ctx.MustGet("claims").(ijwt.UserClaims)
+	if err := ctx.ShouldBind(&req); err != nil {
+		return
+	}
+	uc, ok := ctx.MustGet("claims").(*ijwt.UserClaims)
 	if !ok {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
@@ -449,6 +441,7 @@ func (a *ArticleHandler) Collect(ctx *gin.Context) {
 			Code: 5,
 			Msg:  "系统错误",
 		})
+		return
 	}
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "OK",
