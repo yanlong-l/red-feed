@@ -24,7 +24,7 @@ type ArticleRepository interface {
 type CachedArticleRepository struct {
 	dao      dao.ArticleDao
 	cache    cache.ArticleCache
-	userRepo UserRepository
+	userRepo CachedUserRepository
 	l        logger.Logger
 }
 
@@ -211,7 +211,7 @@ func (r *CachedArticleRepository) preCache(ctx context.Context,
 	}
 }
 
-func NewArticleRepository(dao dao.ArticleDao, cache cache.ArticleCache, l logger.Logger, userRepo UserRepository) ArticleRepository {
+func NewArticleRepository(dao dao.ArticleDao, cache cache.ArticleCache, l logger.Logger, userRepo CachedUserRepository) ArticleRepository {
 	return &CachedArticleRepository{
 		dao:      dao,
 		cache:    cache,

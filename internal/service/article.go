@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"red-feed/internal/domain"
+	"red-feed/internal/events/article"
 	"red-feed/internal/repository"
+	"red-feed/pkg/logger"
 )
 
 type ArticleService interface {
@@ -13,11 +15,13 @@ type ArticleService interface {
 	List(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error)
 	ListPub(ctx context.Context, offset int, limit int) ([]domain.Article, error)
 	GetById(ctx context.Context, id int64) (domain.Article, error)
-	GetPublishedById(ctx context.Context, id int64) (domain.Article, error)
+	GetPublishedById(ctx context.Context, id, uId int64) (domain.Article, error)
 }
 
 type articleService struct {
-	repo repository.ArticleRepository
+	repo     repository.ArticleRepository
+	producer article.Producer
+	l        logger.Logger
 }
 
 func (s *articleService) ListPub(ctx context.Context, offset int, limit int) ([]domain.Article, error) {
@@ -28,8 +32,21 @@ func (s *articleService) GetById(ctx context.Context, id int64) (domain.Article,
 	return s.repo.GetById(ctx, id)
 }
 
-func (s *articleService) GetPublishedById(ctx context.Context, id int64) (domain.Article, error) {
-	return s.repo.GetPubById(ctx, id)
+func (s *articleService) GetPublishedById(ctx context.Context, id, uId int64) (domain.Article, error) {
+	art, err := s.repo.GetPubById(ctx, id)
+	if err != nil {
+		return domain.Article{}, err
+	}
+	go func() {
+		er := s.producer.ProduceReadEvent(ctx, article.ReadEvent{
+			Uid: uId,
+			Aid: art.Id,
+		})
+		if er != nil {
+			s.l.Error("发送阅读事件失败", logger.Error(er))
+		}
+	}()
+	return art, nil
 }
 
 func (s *articleService) List(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error) {
@@ -53,8 +70,10 @@ func (s *articleService) Save(ctx context.Context, article domain.Article) (id i
 	return s.repo.Create(ctx, article)
 }
 
-func NewArticleService(repo repository.ArticleRepository) ArticleService {
+func NewArticleService(repo repository.ArticleRepository, producer article.Producer, l logger.Logger) ArticleService {
 	return &articleService{
-		repo: repo,
+		repo:     repo,
+		producer: producer,
+		l:        l,
 	}
 }

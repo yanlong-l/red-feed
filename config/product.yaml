@@ -3,3 +3,7 @@ db:
 
 redis:
   addr: "10.10.1.11:6379"
+
+kafka:
+  addrs:
+    - "localhost:9094"

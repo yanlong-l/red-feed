@@ -302,7 +302,7 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 	)
 	eg.Go(func() error {
 		var er error
-		art, er = a.svc.GetPublishedById(ctx, id)
+		art, er = a.svc.GetPublishedById(ctx, id, uc.Uid)
 		return er
 	})
 
@@ -321,7 +321,7 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 		})
 	}
 
-	art, err = a.svc.GetPublishedById(ctx, id)
+	art, err = a.svc.GetPublishedById(ctx, id, uc.Uid)
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,

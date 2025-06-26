@@ -11,6 +11,7 @@ var ErrDataNotFound = gorm.ErrRecordNotFound
 
 type InteractiveDAO interface {
 	IncrReadCnt(ctx context.Context, biz string, bizId int64) error
+	BatchIncrReadCnt(ctx context.Context, bizs []string, bizIds []int64) error
 
 	GetLikeInfo(ctx context.Context, biz string, bizId, uid int64) (UserLikeBiz, error)
 	InsertLikeInfo(ctx context.Context, biz string, bizId, uId int64) error
@@ -170,8 +171,12 @@ func (d *GORMInteractiveDAO) DeleteLikeInfo(ctx context.Context, biz string, biz
 }
 
 func (d *GORMInteractiveDAO) IncrReadCnt(ctx context.Context, biz string, bizId int64) error {
+	return d.incrReadCnt(d.db.WithContext(ctx), biz, bizId)
+}
+
+func (d *GORMInteractiveDAO) incrReadCnt(tx *gorm.DB, biz string, bizId int64) error {
 	now := time.Now().UnixMilli()
-	return d.db.WithContext(ctx).Clauses(clause.OnConflict{
+	return tx.Clauses(clause.OnConflict{
 		// MySQL 不写
 		//Columns:
 		DoUpdates: clause.Assignments(map[string]any{
@@ -185,6 +190,19 @@ func (d *GORMInteractiveDAO) IncrReadCnt(ctx context.Context, biz string, bizId 
 		Ctime:   now,
 		Utime:   now,
 	}).Error
+}
+
+func (d *GORMInteractiveDAO) BatchIncrReadCnt(ctx context.Context, bizs []string, bizIds []int64) error {
+	return d.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 让调用者保证两者是相等的
+		for i := 0; i < len(bizs); i++ {
+			err := d.incrReadCnt(tx, bizs[i], bizIds[i])
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // Interactive 互动信息表

@@ -25,7 +25,7 @@ func InitWebServer() *gin.Engine {
 	logger := ioc.InitLogger()
 	v := ioc.InitMiddlewares(cmdable, handler, logger)
 	db := ioc.InitDB()
-	gormUserDAO := dao.NewUserDAO(db)
+	gormUserDAO := dao.NewGORMUserDAO(db)
 	redisUserCache := cache.NewUserCache(cmdable)
 	cachedUserRepository := repository.NewUserRepository(gormUserDAO, redisUserCache)
 	userService := service.NewUserService(cachedUserRepository)

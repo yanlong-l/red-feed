@@ -22,7 +22,7 @@ func TestCachedUserRepository_FindById(t *testing.T) {
 	now = time.UnixMilli(now.UnixMilli())
 	testcases := []struct {
 		name     string
-		mock     func(ctrl *gomock.Controller) (dao.GORMUserDAO, cache.RedisUserCache)
+		mock     func(ctrl *gomock.Controller) (dao.UserDAO, cache.RedisUserCache)
 		ctx      context.Context
 		id       int64
 		wantUser domain.User
@@ -30,7 +30,7 @@ func TestCachedUserRepository_FindById(t *testing.T) {
 	}{
 		{
 			name: "缓存未命中，查询成功",
-			mock: func(ctrl *gomock.Controller) (dao.GORMUserDAO, cache.RedisUserCache) {
+			mock: func(ctrl *gomock.Controller) (dao.UserDAO, cache.RedisUserCache) {
 				ud := daomocks.NewMockGORMUserDAO(ctrl)
 				uc := cachemocks.NewMockRedisUserCache(ctrl)
 				uc.EXPECT().Get(context.Background(), int64(123)).Return(domain.User{}, errors.New("no user found"))
@@ -70,7 +70,7 @@ func TestCachedUserRepository_FindById(t *testing.T) {
 		},
 		{
 			name: "缓存直接命中",
-			mock: func(ctrl *gomock.Controller) (dao.GORMUserDAO, cache.RedisUserCache) {
+			mock: func(ctrl *gomock.Controller) (dao.UserDAO, cache.RedisUserCache) {
 				ud := daomocks.NewMockGORMUserDAO(ctrl)
 				uc := cachemocks.NewMockRedisUserCache(ctrl)
 				uc.EXPECT().Get(context.Background(), int64(123)).Return(domain.User{
@@ -95,20 +95,18 @@ func TestCachedUserRepository_FindById(t *testing.T) {
 		},
 		{
 			name: "缓存未命中，且走数据库查询失败",
-			mock: func(ctrl *gomock.Controller) (dao.GORMUserDAO, cache.RedisUserCache) {
+			mock: func(ctrl *gomock.Controller) (dao.UserDAO, cache.RedisUserCache) {
 				ud := daomocks.NewMockGORMUserDAO(ctrl)
 				uc := cachemocks.NewMockRedisUserCache(ctrl)
 				uc.EXPECT().Get(context.Background(), int64(123)).Return(domain.User{}, errors.New("no user found"))
 				ud.EXPECT().FindById(context.Background(), int64(123)).
-					Return(dao.User{
-					}, errors.New("db error"))
+					Return(dao.User{}, errors.New("db error"))
 				return ud, uc
 			},
-			ctx: context.Background(),
-			id:  123,
-			wantUser: domain.User{
-			},
-			wantErr: errors.New("db error"),
+			ctx:      context.Background(),
+			id:       123,
+			wantUser: domain.User{},
+			wantErr:  errors.New("db error"),
 		},
 	}
 
