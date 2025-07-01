@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"github.com/ecodeclub/ekit/slice"
 	"red-feed/internal/domain"
 	"red-feed/internal/repository/cache"
 	"red-feed/internal/repository/dao"
@@ -18,12 +19,24 @@ type InteractiveRepository interface {
 	Liked(ctx context.Context, biz string, bizId int64, uId int64) (bool, error)
 	Collected(ctx context.Context, biz string, bizId int64, uId int64) (bool, error)
 	BatchIncrReadCnt(ctx context.Context, bizs []string, bizIds []int64) error
+	GetByIds(ctx context.Context, biz string, ids []int64) ([]domain.Interactive, error)
 }
 
 type CachedInteractiveRepository struct {
 	dao   dao.InteractiveDAO
 	cache cache.InteractiveCache
 	l     logger.Logger
+}
+
+func (r *CachedInteractiveRepository) GetByIds(ctx context.Context, biz string, ids []int64) ([]domain.Interactive, error) {
+	vals, err := r.dao.GetByIds(ctx, biz, ids)
+	if err != nil {
+		return nil, err
+	}
+	return slice.Map[dao.Interactive, domain.Interactive](vals,
+		func(idx int, src dao.Interactive) domain.Interactive {
+			return r.toDomain(src)
+		}), nil
 }
 
 func (r *CachedInteractiveRepository) BatchIncrReadCnt(ctx context.Context, bizs []string, bizIds []int64) error {

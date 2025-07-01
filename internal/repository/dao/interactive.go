@@ -22,6 +22,7 @@ type InteractiveDAO interface {
 	DeleteCollectInfo(ctx context.Context, biz string, bizId int64, uId, cId int64) error
 
 	Get(ctx context.Context, biz string, bizId int64) (Interactive, error)
+	GetByIds(ctx context.Context, biz string, ids []int64) ([]Interactive, error)
 }
 
 type GORMInteractiveDAO struct {
@@ -32,6 +33,12 @@ func NewInteractiveDAO(db *gorm.DB) InteractiveDAO {
 	return &GORMInteractiveDAO{
 		db: db,
 	}
+}
+
+func (d *GORMInteractiveDAO) GetByIds(ctx context.Context, biz string, ids []int64) ([]Interactive, error) {
+	var res []Interactive
+	err := d.db.WithContext(ctx).Where("biz = ? AND id IN ?", biz, ids).Find(&res).Error
+	return res, err
 }
 
 func (d *GORMInteractiveDAO) Get(ctx context.Context, biz string, bizId int64) (Interactive, error) {

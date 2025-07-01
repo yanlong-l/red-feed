@@ -6,14 +6,17 @@ import (
 	"red-feed/internal/events/article"
 	"red-feed/internal/repository"
 	"red-feed/pkg/logger"
+	"time"
 )
 
+//go:generate mockgen -source=article.go -package=svcmocks -destination=mocks/article.mock.go ArticleService
 type ArticleService interface {
 	Save(ctx context.Context, article domain.Article) (id int64, err error)
 	Publish(ctx context.Context, article domain.Article) (int64, error)
 	WithDraw(ctx context.Context, article domain.Article) error
 	List(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error)
 	ListPub(ctx context.Context, offset int, limit int) ([]domain.Article, error)
+	ListPubForRanking(ctx context.Context, start time.Time, offset int, limit int) ([]domain.Article, error) // 线上库列表只取7天内的，用于热榜计算
 	GetById(ctx context.Context, id int64) (domain.Article, error)
 	GetPublishedById(ctx context.Context, id, uId int64) (domain.Article, error)
 }
@@ -22,6 +25,10 @@ type articleService struct {
 	repo     repository.ArticleRepository
 	producer article.Producer
 	l        logger.Logger
+}
+
+func (s *articleService) ListPubForRanking(ctx context.Context, start time.Time, offset int, limit int) ([]domain.Article, error) {
+	return s.repo.ListPubForRanking(ctx, start, offset, limit)
 }
 
 func (s *articleService) ListPub(ctx context.Context, offset int, limit int) ([]domain.Article, error) {

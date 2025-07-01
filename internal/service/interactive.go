@@ -8,18 +8,32 @@ import (
 	"red-feed/pkg/logger"
 )
 
+//go:generate mockgen -source=./interactive.go -package=svcmocks -destination=mocks/interactive.mock.go InteractiveService
 type InteractiveService interface {
-	IncrReadCnt(ctx context.Context, biz string, bizId int64) error                          // 增加阅读计数
-	Like(ctx context.Context, biz string, bizId, uId int64) error                            // 点赞
-	CancelLike(ctx context.Context, biz string, bizId, uId int64) error                      // 取消点赞
-	Collect(ctx context.Context, biz string, bizId, uId, cId int64) error                    // 收藏
-	CancelCollect(ctx context.Context, biz string, bizId, uId, cId int64) error              // 取消收藏
-	Get(ctx context.Context, biz string, bizId int64, uId int64) (domain.Interactive, error) // 获取收藏点赞信息
+	IncrReadCnt(ctx context.Context, biz string, bizId int64) error                                 // 增加阅读计数
+	Like(ctx context.Context, biz string, bizId, uId int64) error                                   // 点赞
+	CancelLike(ctx context.Context, biz string, bizId, uId int64) error                             // 取消点赞
+	Collect(ctx context.Context, biz string, bizId, uId, cId int64) error                           // 收藏
+	CancelCollect(ctx context.Context, biz string, bizId, uId, cId int64) error                     // 取消收藏
+	Get(ctx context.Context, biz string, bizId int64, uId int64) (domain.Interactive, error)        // 获取收藏点赞信息
+	GetByIds(ctx context.Context, biz string, bizIds []int64) (map[int64]domain.Interactive, error) // 拿一批文章的interactive信息，用于ranking计算score
 }
 
 type interactiveService struct {
 	repo repository.InteractiveRepository
 	l    logger.Logger
+}
+
+func (s *interactiveService) GetByIds(ctx context.Context, biz string, bizIds []int64) (map[int64]domain.Interactive, error) {
+	intrs, err := s.repo.GetByIds(ctx, biz, bizIds)
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[int64]domain.Interactive, len(intrs))
+	for _, intr := range intrs {
+		res[intr.BizId] = intr
+	}
+	return res, nil
 }
 
 func (s *interactiveService) Like(ctx context.Context, biz string, bizId, uId int64) error {

@@ -16,21 +16,32 @@ import (
 )
 
 func main() {
+	// 初始化配置
 	initViper()
+	// 初始化日志
 	initLogger()
 
-	// 正确初始化OTEL并获取shutdown函数
+	// 初始化Opentelemetry
 	shutdownOTEL := ioc.InitOTEL()
 	defer shutdownOTEL(context.Background())
 
+	// 初始化Prometheus
 	initPrometheus()
+
+	// 初始化APP
 	app := InitApp()
+
+	// 开启所有consumers
 	for _, c := range app.consumers {
 		err := c.Start()
 		if err != nil {
 			panic(err)
 		}
 	}
+
+	// 开启定时任务
+	app.cron.Start()
+
 	server := app.web
 	server.GET("/", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{
@@ -63,8 +74,18 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		zap.L().Fatal("Server forced to shutdown", zap.Error(err))
 	}
-
 	zap.L().Info("Server exiting")
+
+	// 关闭定时任务
+	zap.L().Info("Cron shutting down...")
+	ctx = app.cron.Stop()
+	// 这边可以考虑超时强制退出，防止有些任务，执行特别长的时间
+	tm := time.NewTimer(time.Minute * 10)
+	select {
+	case <-tm.C:
+	case <-ctx.Done():
+	}
+	zap.L().Info("Cron exiting")
 }
 
 func initPrometheus() {

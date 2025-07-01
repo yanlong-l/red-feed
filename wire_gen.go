@@ -7,6 +7,7 @@
 package main
 
 import (
+	"github.com/google/wire"
 	"red-feed/internal/events/article"
 	"red-feed/internal/repository"
 	"red-feed/internal/repository/cache"
@@ -55,9 +56,18 @@ func InitApp() *App {
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
 	consumer := article.NewInteractiveReadEventBatchConsumer(client, interactiveRepository, logger)
 	v2 := ioc.NewConsumers(consumer)
+	rankingService := service.NewBatchRankingService(articleService, interactiveService)
+	rlockClient := ioc.InitRLockClient(cmdable)
+	rankingJob := ioc.InitRankingJob(rankingService, rlockClient, logger)
+	cron := ioc.InitJobs(logger, rankingJob)
 	app := &App{
 		web:       engine,
 		consumers: v2,
+		cron:      cron,
 	}
 	return app
 }
+
+// wire.go:
+
+var rankingServiceSet = wire.NewSet(repository.NewCachedRankingRepository, cache.NewRankingRedisCache, service.NewBatchRankingService)

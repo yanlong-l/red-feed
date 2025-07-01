@@ -15,6 +15,12 @@ import (
 	"github.com/google/wire"
 )
 
+var rankingServiceSet = wire.NewSet(
+	repository.NewCachedRankingRepository,
+	cache.NewRankingRedisCache,
+	service.NewBatchRankingService,
+)
+
 func InitApp() *App {
 	wire.Build(
 		// 最基础的第三方依赖
@@ -57,6 +63,11 @@ func InitApp() *App {
 		ijwt.NewRedisJWTHandler,
 		ioc.InitMiddlewares,
 		ioc.InitWebServer,
+
+		rankingServiceSet,
+		ioc.InitJobs,
+		ioc.InitRankingJob,
+		ioc.InitRLockClient,
 
 		ioc.InitLogger,
 
