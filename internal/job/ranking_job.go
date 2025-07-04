@@ -37,7 +37,7 @@ func (r *RankingJob) Name() string {
 	return "ranking"
 }
 
-// 按时间调度的，三分钟一次
+// Run 按时间调度的，三分钟一次
 func (r *RankingJob) Run() error {
 	r.localLock.Lock()
 	defer r.localLock.Unlock()

@@ -28,7 +28,7 @@ func NewCronJobBuilder(l logger.Logger) *CronJobBuilder {
 	return &CronJobBuilder{
 		l:      l,
 		p:      p,
-		tracer: otel.GetTracerProvider().Tracer("webook/internal/job"),
+		tracer: otel.GetTracerProvider().Tracer("red-feed/internal/job"),
 	}
 }
 
