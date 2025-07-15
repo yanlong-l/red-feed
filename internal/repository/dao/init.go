@@ -11,5 +11,8 @@ func InitTable(db *gorm.DB) error {
 		&UserLikeBiz{},
 		&UserCollectionBiz{},
 		&Collection{},
-		&UserCollectionBiz{})
+		&UserCollectionBiz{},
+		&Job{},
+	)
+
 }
