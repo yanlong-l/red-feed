@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package intr.v1;
+option go_package = "intr/v1;intrv1";
+
+service InteractiveService {
+  rpc IncrReadCnt(IncrReadCntRequest) returns (IncrReadCntResponse); // 增加阅读计数
+  rpc Like(LikeRequest) returns (LikeResponse); // 点赞
+  rpc CancelLike(CancelLikeRequest) returns (CancelLikeResponse); // 取消点赞
+  rpc Collect(CollectRequest) returns (CollectResponse); // 收藏
+  rpc CancelCollect(CancelCollectRequest) returns (CancelCollectResponse); // 收藏
+  rpc Get(GetRequest) returns (GetResponse); // 获取收藏点赞信息
+  rpc GetByIds(GetByIdsRequest) returns (GetByIdsResponse); // 拿一批文章的interactive信息，用于ranking计算score
+}
+
+message GetByIdsRequest {
+  string biz = 1;
+  repeated int64 biz_ids = 2;
+}
+
+message GetByIdsResponse {
+  map<int64, Interactive> intrs = 1;
+}
+
+message GetRequest {
+  string biz = 1;
+  int64 biz_id = 2;
+  int64 uid = 3;
+}
+
+message GetResponse {
+  Interactive intr = 1;
+}
+
+message Interactive {
+  string biz = 1;
+  int64 biz_id = 2;
+  int64  read_cnt = 3;
+  int64 like_cnt = 4;
+  int64 collect_cnt = 5;
+  bool liked = 6;
+  bool collected = 7;
+}
+
+message CollectRequest {
+  string biz = 1;
+  int64 biz_id = 2;
+  int64 uid = 3;
+  int64 cid = 4;
+}
+
+message CollectResponse {}
+
+
+
+message CancelCollectRequest {
+  string biz = 1;
+
+  int64 biz_id = 2;
+  int64 uid = 3;
+  int64 cid = 4;
+}
+
+message CancelCollectResponse {}
+
+
+
+message CancelLikeRequest {
+  string biz = 1;
+  int64 biz_id = 2;
+  int64 uid = 3;
+}
+
+message CancelLikeResponse {}
+
+
+
+message LikeRequest {
+  string biz = 1;
+  int64 biz_id = 2;
+  int64 uid = 3;
+}
+
+message LikeResponse {}
+
+
+
+
+message IncrReadCntRequest {
+  string biz = 1;
+  int64 biz_id = 2;
+}
+
+message IncrReadCntResponse {}
+
+
+
+
