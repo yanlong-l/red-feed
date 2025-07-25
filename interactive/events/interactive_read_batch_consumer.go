@@ -1,10 +1,9 @@
-package article
+package events
 
 import (
 	"context"
 	"github.com/IBM/sarama"
-	"red-feed/internal/events"
-	"red-feed/internal/repository"
+	"red-feed/interactive/repository"
 	"red-feed/pkg/logger"
 	"red-feed/pkg/saramax"
 	"time"
@@ -16,7 +15,7 @@ type InteractiveReadEventBatchConsumer struct {
 	l      logger.Logger
 }
 
-func NewInteractiveReadEventBatchConsumer(client sarama.Client, repo repository.InteractiveRepository, l logger.Logger) events.Consumer {
+func NewInteractiveReadEventBatchConsumer(client sarama.Client, repo repository.InteractiveRepository, l logger.Logger) Consumer {
 	return &InteractiveReadEventBatchConsumer{client: client, repo: repo, l: l}
 }
 

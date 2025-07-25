@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"github.com/ecodeclub/ekit/slice"
-	"red-feed/internal/domain"
-	"red-feed/internal/repository/cache"
-	"red-feed/internal/repository/dao"
+	"red-feed/interactive/domain"
+	"red-feed/interactive/repository/cache"
+	"red-feed/interactive/repository/dao"
 	"red-feed/pkg/logger"
 )
 

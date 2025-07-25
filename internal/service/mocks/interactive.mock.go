@@ -11,7 +11,7 @@ package svcmocks
 
 import (
 	context "context"
-	domain "red-feed/internal/domain"
+	"red-feed/interactive/domain"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"

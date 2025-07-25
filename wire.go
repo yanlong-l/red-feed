@@ -3,6 +3,11 @@
 package main
 
 import (
+	"red-feed/interactive/events"
+	repository2 "red-feed/interactive/repository"
+	cache2 "red-feed/interactive/repository/cache"
+	dao2 "red-feed/interactive/repository/dao"
+	service2 "red-feed/interactive/service"
 	"red-feed/internal/events/article"
 	"red-feed/internal/repository"
 	"red-feed/internal/repository/cache"
@@ -30,28 +35,28 @@ func InitApp() *App {
 		ioc.NewSyncProducer,
 
 		article.NewKafkaProducer,
-		article.NewInteractiveReadEventBatchConsumer,
+		events.NewInteractiveReadEventBatchConsumer,
 
 		// 初始化DAO层 和 Cache层
 		dao.NewGORMUserDAO,
-		dao.NewInteractiveDAO,
+		dao2.NewInteractiveDAO,
 		dao.NewGORMArticleDao,
 		cache.NewUserCache,
 		cache.NewCodeCache,
 		cache.NewRedisArticleCache,
-		cache.NewRedisInteractiveCache,
+		cache2.NewRedisInteractiveCache,
 
 		// 初始化Repo层
 		repository.NewUserRepository,
 		repository.NewCodeRepository,
 		repository.NewArticleRepository,
-		repository.NewInteractiveRepository,
+		repository2.NewInteractiveRepository,
 
 		// 初始化Service层
 		service.NewUserService,
 		service.NewCodeService,
 		service.NewArticleService,
-		service.NewInteractiveService,
+		service2.NewInteractiveService,
 		ioc.InitWechatService,
 		ioc.InitSMSService,
 

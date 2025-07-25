@@ -8,6 +8,11 @@ package main
 
 import (
 	"github.com/google/wire"
+	"red-feed/interactive/events"
+	repository2 "red-feed/interactive/repository"
+	cache2 "red-feed/interactive/repository/cache"
+	dao2 "red-feed/interactive/repository/dao"
+	service2 "red-feed/interactive/service"
 	"red-feed/internal/events/article"
 	"red-feed/internal/repository"
 	"red-feed/internal/repository/cache"
@@ -48,13 +53,13 @@ func InitApp() *App {
 	syncProducer := ioc.NewSyncProducer(client)
 	producer := article.NewKafkaProducer(syncProducer)
 	articleService := service.NewArticleService(articleRepository, producer, logger)
-	interactiveDAO := dao.NewInteractiveDAO(db)
-	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
-	interactiveRepository := repository.NewInteractiveRepository(interactiveDAO, interactiveCache, logger)
-	interactiveService := service.NewInteractiveService(interactiveRepository, logger)
+	interactiveDAO := dao2.NewInteractiveDAO(db)
+	interactiveCache := cache2.NewRedisInteractiveCache(cmdable)
+	interactiveRepository := repository2.NewInteractiveRepository(interactiveDAO, interactiveCache, logger)
+	interactiveService := service2.NewInteractiveService(interactiveRepository, logger)
 	articleHandler := web.NewArticleHandler(articleService, logger, interactiveService)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
-	consumer := article.NewInteractiveReadEventBatchConsumer(client, interactiveRepository, logger)
+	consumer := events.NewInteractiveReadEventBatchConsumer(client, interactiveRepository, logger)
 	v2 := ioc.NewConsumers(consumer)
 	rankingService := service.NewBatchRankingService(articleService, interactiveService)
 	rlockClient := ioc.InitRLockClient(cmdable)

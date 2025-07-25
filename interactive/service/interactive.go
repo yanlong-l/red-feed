@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"golang.org/x/sync/errgroup"
-	"red-feed/internal/domain"
-	"red-feed/internal/repository"
+	"red-feed/interactive/domain"
+	"red-feed/interactive/repository"
 	"red-feed/pkg/logger"
 )
 

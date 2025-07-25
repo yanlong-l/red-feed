@@ -1,10 +1,9 @@
-package article
+package events
 
 import (
 	"context"
 	"github.com/IBM/sarama"
-	"red-feed/internal/events"
-	"red-feed/internal/repository"
+	"red-feed/interactive/repository"
 	"red-feed/pkg/logger"
 	"red-feed/pkg/saramax"
 	"time"
@@ -44,7 +43,7 @@ func (r *InteractiveReadEventConsumer) Consume(msg *sarama.ConsumerMessage, t Re
 func NewInteractiveReadEventConsumer(
 	client sarama.Client,
 	l logger.Logger,
-	repo repository.InteractiveRepository) events.Consumer {
+	repo repository.InteractiveRepository) Consumer {
 	return &InteractiveReadEventConsumer{
 		client: client,
 		l:      l,

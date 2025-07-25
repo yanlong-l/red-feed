@@ -5,7 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"github.com/redis/go-redis/v9"
-	"red-feed/internal/domain"
+	"red-feed/interactive/domain"
 	"strconv"
 	"time"
 )
