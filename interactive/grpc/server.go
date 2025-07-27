@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"google.golang.org/grpc"
 	intrv1 "red-feed/api/proto/gen/intr/v1"
 	"red-feed/interactive/domain"
 	"red-feed/interactive/service"
@@ -11,6 +12,14 @@ import (
 type InteractiveServiceServer struct {
 	intrv1.UnimplementedInteractiveServiceServer
 	svc service.InteractiveService
+}
+
+func NewInteractiveServiceServer(svc service.InteractiveService) *InteractiveServiceServer {
+	return &InteractiveServiceServer{svc: svc}
+}
+
+func (i *InteractiveServiceServer) Register(server *grpc.Server) {
+	intrv1.RegisterInteractiveServiceServer(server, i)
 }
 
 func (i *InteractiveServiceServer) IncrReadCnt(ctx context.Context, request *intrv1.IncrReadCntRequest) (*intrv1.IncrReadCntResponse, error) {

@@ -1,22 +1,26 @@
 package main
 
-import (
-	"google.golang.org/grpc"
-	"log"
-	"net"
-	intrv1 "red-feed/api/proto/gen/intr/v1"
-	grpcintr "red-feed/interactive/grpc"
-)
+import "github.com/spf13/viper"
 
 func main() {
-	server := grpc.NewServer()
-	intrSvc := &grpcintr.InteractiveServiceServer{}
-	intrv1.RegisterInteractiveServiceServer(server, intrSvc)
-	l, err := net.Listen("tcp", ":8090")
+	initViper()
+	app := InitAPP()
+	for _, c := range app.consumers {
+		err := c.Start()
+		if err != nil {
+			panic(err)
+		}
+	}
+	err := app.server.Serve()
 	if err != nil {
 		panic(err)
 	}
-	// 这边会阻塞，类似与 gin.Run
-	err = server.Serve(l)
-	log.Println(err)
+}
+
+func initViper() {
+	viper.SetConfigFile("config/dev.yaml")
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(err)
+	}
 }

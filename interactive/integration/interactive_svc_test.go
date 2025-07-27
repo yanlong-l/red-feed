@@ -6,7 +6,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/net/context"
 	"gorm.io/gorm"
+	intrv1 "red-feed/api/proto/gen/intr/v1"
 	"red-feed/interactive/domain"
+	"red-feed/interactive/grpc"
 	"red-feed/interactive/integration/startup"
 	"red-feed/interactive/repository/dao"
 	"testing"
@@ -15,8 +17,9 @@ import (
 
 type InteractiveTestSuite struct {
 	suite.Suite
-	db  *gorm.DB
-	rdb redis.Cmdable
+	db     *gorm.DB
+	rdb    redis.Cmdable
+	server *grpc.InteractiveServiceServer
 }
 
 func (s *InteractiveTestSuite) SetupSuite() {
@@ -47,7 +50,8 @@ func (s *InteractiveTestSuite) TestIncrReadCnt() {
 		biz   string
 		bizId int64
 
-		wantErr error
+		wantErr  error
+		wantResp *intrv1.IncrReadCntResponse
 	}{
 		{
 			// DB 和缓存都有数据
@@ -171,12 +175,15 @@ func (s *InteractiveTestSuite) TestIncrReadCnt() {
 
 	// 不同于 AsyncSms 服务，我们不需要 mock，所以创建一个就可以
 	// 不需要每个测试都创建
-	svc := startup.InitInteractiveService()
 	for _, tc := range testCases {
 		s.T().Run(tc.name, func(t *testing.T) {
 			tc.before(t)
-			err := svc.IncrReadCnt(context.Background(), tc.biz, tc.bizId)
+			_, err := s.server.IncrReadCnt(context.Background(), &intrv1.IncrReadCntRequest{
+				Biz:   tc.biz,
+				BizId: tc.bizId,
+			})
 			assert.Equal(t, tc.wantErr, err)
+			//assert.(t, tc.wantResp, resp)
 			tc.after(t)
 		})
 	}

@@ -4,6 +4,7 @@ package startup
 
 import (
 	"github.com/google/wire"
+	"red-feed/interactive/grpc"
 	"red-feed/interactive/repository"
 	"red-feed/interactive/repository/cache"
 	"red-feed/interactive/repository/dao"
@@ -23,4 +24,9 @@ var interactiveSvcProvider = wire.NewSet(
 func InitInteractiveService() service.InteractiveService {
 	wire.Build(thirdProvider, interactiveSvcProvider)
 	return service.NewInteractiveService(nil, nil)
+}
+
+func InitInteractiveGRPCServer() *grpc.InteractiveServiceServer {
+	wire.Build(thirdProvider, interactiveSvcProvider, grpc.NewInteractiveServiceServer)
+	return new(grpc.InteractiveServiceServer)
 }
